@@ -3,7 +3,7 @@
 ## Overview
 Single-page scroll-driven storytelling portfolio. Journey from **space (present)** to **earth (past)**, traversing through career history.
 
-**Tech:** Astro + GSAP (scroll-triggered animations)
+**Tech:** NextJS + GSAP (scroll-triggered animations)
 **Style:** Bold, playful, Interstellar-inspired
 **SEO:** Noscript fallbacks for all content
 

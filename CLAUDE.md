@@ -1,7 +1,7 @@
 # Adam's Portfolio Website
 
 ## Tech Stack
-- **Astro** - Static site generator
+- **NextJS** - Static site generator
 - **GSAP** - ScrollTrigger, spring animations
 - **TypeScript**
 
@@ -16,6 +16,12 @@
 - Interstellar/space theme
 - Noscript fallbacks for SEO
 - Static images with GSAP transforms (no animated sprites)
+- Minimize gradients
+
+## Color Scheme
+- **Primary:** #fca311 (golden yellow)
+- **Secondary:** #22223b (dark purple)
+- **Background:** #000814 (deep navy)
 
 ## Content Sections
 1. Hero (name, title)
