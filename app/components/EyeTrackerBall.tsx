@@ -10,12 +10,12 @@ import Image from "next/image";
 // Eye positions (percentage from top-left of container)
 const LEFT_EYE = {
   x: 37.5, // percentage from left
-  y: 49.9, // percentage from top
+  y: 49.5, // percentage from top
 };
 
 const RIGHT_EYE = {
   x: 61.5, // percentage from left
-  y: 49.95, // percentage from top
+  y: 49.55, // percentage from top
 };
 
 // Eyeball size (percentage of container width)
@@ -50,8 +50,8 @@ const GYRO_SENSITIVITY = 15; // How much device tilt affects movement (higher = 
 const GYRO_CENTER_BETA = 45; // Neutral phone tilt angle (front-to-back, ~45° is natural holding angle)
 const GYRO_CENTER_GAMMA = 0; // Neutral left-right tilt
 
-// Fallback position when gyro unavailable (eyes look up)
-const FALLBACK_OFFSET_Y = -MOVEMENT_MAGNITUDE * 0.8; // Look up
+// Fallback position when gyro unavailable (eyes look forward)
+const FALLBACK_OFFSET = { x: 0, y: 0 };
 
 // ============================================
 
@@ -423,28 +423,42 @@ export default function EyeTrackerBall() {
     };
   }, []);
 
-  // Set fallback position (eyes look up)
+  // Set fallback position (eyes look forward) - sets both state and targets for immediate effect
   const setFallbackPosition = useCallback(() => {
-    targetLeftOffset.current = { x: 0, y: FALLBACK_OFFSET_Y };
-    targetRightOffset.current = { x: 0, y: FALLBACK_OFFSET_Y };
-    targetBaseOffset.current = { x: 0, y: -BASE_MOVEMENT };
-    targetOverlayOffset.current = { x: 0, y: -OVERLAY_MOVEMENT };
-    targetPerspective.current = { rotateX: PERSPECTIVE_AMOUNT * 0.5, rotateY: 0 };
+    const noOffset = { x: 0, y: 0 };
+    const noPerspective = { rotateX: 0, rotateY: 0 };
+
+    // Set targets
+    targetLeftOffset.current = FALLBACK_OFFSET;
+    targetRightOffset.current = FALLBACK_OFFSET;
+    targetBaseOffset.current = noOffset;
+    targetOverlayOffset.current = noOffset;
+    targetPerspective.current = noPerspective;
+
+    // Set state directly for immediate effect
+    currentLeftOffset.current = FALLBACK_OFFSET;
+    currentRightOffset.current = FALLBACK_OFFSET;
+    currentBaseOffset.current = noOffset;
+    currentOverlayOffset.current = noOffset;
+    currentPerspective.current = noPerspective;
+
+    setLeftEyeOffset(FALLBACK_OFFSET);
+    setRightEyeOffset(FALLBACK_OFFSET);
+    setBaseOffset(noOffset);
+    setOverlayOffset(noOffset);
+    setPerspective(noPerspective);
   }, []);
 
   // Set up event listeners
   useEffect(() => {
-    let hasPointerInput = false;
     let gyroActive = false;
 
     const handleMouseMove = (e: MouseEvent) => {
-      hasPointerInput = true;
       handlePointerMove(e.clientX, e.clientY);
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length > 0) {
-        hasPointerInput = true;
         handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
       }
     };
@@ -474,6 +488,11 @@ export default function EyeTrackerBall() {
     // Check if device is mobile (no fine pointer)
     const isMobile = window.matchMedia("(pointer: coarse)").matches;
 
+    // On mobile, set fallback immediately - gyro will override if it works
+    if (isMobile) {
+      setFallbackPosition();
+    }
+
     // Try to set up gyroscope for mobile
     const setupGyroscope = async () => {
       if (!isMobile) return;
@@ -487,22 +506,13 @@ export default function EyeTrackerBall() {
         if (typeof DeviceOrientationEventTyped.requestPermission === "function") {
           const permission = await DeviceOrientationEventTyped.requestPermission();
           if (permission !== "granted") {
-            setFallbackPosition();
-            return;
+            return; // Keep fallback position
           }
         }
 
         window.addEventListener("deviceorientation", handleDeviceOrientation, { passive: true });
-
-        // Check if gyro is actually providing data after a short delay
-        setTimeout(() => {
-          if (!gyroActive && !hasPointerInput) {
-            setFallbackPosition();
-          }
-        }, 1000);
       } catch {
-        // Gyroscope not available or permission denied
-        setFallbackPosition();
+        // Gyroscope not available or permission denied - fallback already set
       }
     };
 
@@ -510,18 +520,10 @@ export default function EyeTrackerBall() {
     window.addEventListener("touchmove", handleTouchMove, { passive: true });
     setupGyroscope();
 
-    // Fallback for mobile without gyro after timeout
-    const fallbackTimeout = setTimeout(() => {
-      if (isMobile && !gyroActive && !hasPointerInput) {
-        setFallbackPosition();
-      }
-    }, 2000);
-
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("deviceorientation", handleDeviceOrientation);
-      clearTimeout(fallbackTimeout);
     };
   }, [handlePointerMove, setFallbackPosition]);
 
@@ -532,7 +534,7 @@ export default function EyeTrackerBall() {
       style={{
         transform: "translateX(-50%) translateY(40%)",
         width: "min(550px, 95vw)",
-        height: "min(800px, 95vw)",
+        aspectRatio: "550 / 800",
       }}
     >
       {/* Container for all layers */}
