@@ -5,6 +5,8 @@
 - **GSAP** - ScrollTrigger, spring animations
 - **TypeScript**
 
+This project uses Bun runtime and package manager.
+
 ## Project Structure
 - `layout.md` - Final page design specifications
 - `ideas.md` - Concept and visual zone breakdown

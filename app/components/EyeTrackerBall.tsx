@@ -10,12 +10,12 @@ import Image from "next/image";
 // Eye positions (percentage from top-left of container)
 const LEFT_EYE = {
   x: 37.5, // percentage from left
-  y: 50.1, // percentage from top
+  y: 49.9, // percentage from top
 };
 
 const RIGHT_EYE = {
   x: 61.5, // percentage from left
-  y: 50.1, // percentage from top
+  y: 49.95, // percentage from top
 };
 
 // Eyeball size (percentage of container width)
@@ -38,6 +38,20 @@ const EYEBALL_COLOR_INNER = "#2a2a2a";
 const HIGHLIGHT_SIZE = 30; // percentage of eyeball size
 const HIGHLIGHT_OFFSET = 25; // percentage offset from center
 const HIGHLIGHT_OPACITY = 0.9;
+
+// 3D parallax settings
+const BASE_MOVEMENT = 1; // Max pixels the base moves (less than overlay for depth)
+const OVERLAY_MOVEMENT = 2; // Max pixels the overlay moves
+const PARALLAX_SMOOTHING = 0.08; // Slower than eyes for subtle effect
+const PERSPECTIVE_AMOUNT = 2; // Max degrees of rotation for perspective tilt
+
+// Gyroscope settings (mobile)
+const GYRO_SENSITIVITY = 15; // How much device tilt affects movement (higher = more sensitive)
+const GYRO_CENTER_BETA = 45; // Neutral phone tilt angle (front-to-back, ~45° is natural holding angle)
+const GYRO_CENTER_GAMMA = 0; // Neutral left-right tilt
+
+// Fallback position when gyro unavailable (eyes look up)
+const FALLBACK_OFFSET_Y = -MOVEMENT_MAGNITUDE * 0.8; // Look up
 
 // ============================================
 
@@ -266,14 +280,23 @@ export default function EyeTrackerBall() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [leftEyeOffset, setLeftEyeOffset] = useState({ x: 0, y: 0 });
   const [rightEyeOffset, setRightEyeOffset] = useState({ x: 0, y: 0 });
+  const [baseOffset, setBaseOffset] = useState({ x: 0, y: 0 });
+  const [overlayOffset, setOverlayOffset] = useState({ x: 0, y: 0 });
+  const [perspective, setPerspective] = useState({ rotateX: 0, rotateY: 0 });
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const loadedCountRef = useRef(0);
 
   // Refs for smooth animation
   const targetLeftOffset = useRef({ x: 0, y: 0 });
   const targetRightOffset = useRef({ x: 0, y: 0 });
+  const targetBaseOffset = useRef({ x: 0, y: 0 });
+  const targetOverlayOffset = useRef({ x: 0, y: 0 });
+  const targetPerspective = useRef({ rotateX: 0, rotateY: 0 });
   const currentLeftOffset = useRef({ x: 0, y: 0 });
   const currentRightOffset = useRef({ x: 0, y: 0 });
+  const currentBaseOffset = useRef({ x: 0, y: 0 });
+  const currentOverlayOffset = useRef({ x: 0, y: 0 });
+  const currentPerspective = useRef({ rotateX: 0, rotateY: 0 });
   const animationFrameRef = useRef<number | null>(null);
 
   const handleImageLoad = useCallback(() => {
@@ -295,16 +318,43 @@ export default function EyeTrackerBall() {
         x: lerp(currentRightOffset.current.x, targetRightOffset.current.x, SMOOTHING_FACTOR),
         y: lerp(currentRightOffset.current.y, targetRightOffset.current.y, SMOOTHING_FACTOR),
       };
+      currentBaseOffset.current = {
+        x: lerp(currentBaseOffset.current.x, targetBaseOffset.current.x, PARALLAX_SMOOTHING),
+        y: lerp(currentBaseOffset.current.y, targetBaseOffset.current.y, PARALLAX_SMOOTHING),
+      };
+      currentOverlayOffset.current = {
+        x: lerp(currentOverlayOffset.current.x, targetOverlayOffset.current.x, PARALLAX_SMOOTHING),
+        y: lerp(currentOverlayOffset.current.y, targetOverlayOffset.current.y, PARALLAX_SMOOTHING),
+      };
+      currentPerspective.current = {
+        rotateX: lerp(currentPerspective.current.rotateX, targetPerspective.current.rotateX, PARALLAX_SMOOTHING),
+        rotateY: lerp(currentPerspective.current.rotateY, targetPerspective.current.rotateY, PARALLAX_SMOOTHING),
+      };
 
       // Only update state if there's meaningful change (optimization)
       const leftDiff = Math.abs(currentLeftOffset.current.x - leftEyeOffset.x) +
                        Math.abs(currentLeftOffset.current.y - leftEyeOffset.y);
       const rightDiff = Math.abs(currentRightOffset.current.x - rightEyeOffset.x) +
                         Math.abs(currentRightOffset.current.y - rightEyeOffset.y);
+      const baseDiff = Math.abs(currentBaseOffset.current.x - baseOffset.x) +
+                       Math.abs(currentBaseOffset.current.y - baseOffset.y);
+      const overlayDiff = Math.abs(currentOverlayOffset.current.x - overlayOffset.x) +
+                          Math.abs(currentOverlayOffset.current.y - overlayOffset.y);
+      const perspectiveDiff = Math.abs(currentPerspective.current.rotateX - perspective.rotateX) +
+                              Math.abs(currentPerspective.current.rotateY - perspective.rotateY);
 
       if (leftDiff > 0.01 || rightDiff > 0.01) {
         setLeftEyeOffset({ ...currentLeftOffset.current });
         setRightEyeOffset({ ...currentRightOffset.current });
+      }
+      if (baseDiff > 0.01) {
+        setBaseOffset({ ...currentBaseOffset.current });
+      }
+      if (overlayDiff > 0.01) {
+        setOverlayOffset({ ...currentOverlayOffset.current });
+      }
+      if (perspectiveDiff > 0.001) {
+        setPerspective({ ...currentPerspective.current });
       }
 
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -317,7 +367,7 @@ export default function EyeTrackerBall() {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [leftEyeOffset, rightEyeOffset]);
+  }, [leftEyeOffset, rightEyeOffset, baseOffset, overlayOffset, perspective]);
 
   // Handle mouse/touch movement
   const handlePointerMove = useCallback((clientX: number, clientY: number) => {
@@ -345,28 +395,135 @@ export default function EyeTrackerBall() {
     // Update targets (animation loop will smoothly interpolate)
     targetLeftOffset.current = offsets.left;
     targetRightOffset.current = offsets.right;
+
+    // Calculate parallax offsets (subtle 3D effect)
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dx = clientX - centerX;
+    const dy = clientY - centerY;
+    const maxDist = Math.max(rect.width, rect.height);
+    const normalizedX = dx / maxDist;
+    const normalizedY = dy / maxDist;
+
+    // Base moves less than overlay for layered depth effect
+    targetBaseOffset.current = {
+      x: normalizedX * BASE_MOVEMENT * 2,
+      y: normalizedY * BASE_MOVEMENT * 2,
+    };
+
+    targetOverlayOffset.current = {
+      x: normalizedX * OVERLAY_MOVEMENT * 2,
+      y: normalizedY * OVERLAY_MOVEMENT * 2,
+    };
+
+    // Perspective tilt (rotateX is inverted for natural feel)
+    targetPerspective.current = {
+      rotateX: -normalizedY * PERSPECTIVE_AMOUNT,
+      rotateY: normalizedX * PERSPECTIVE_AMOUNT,
+    };
+  }, []);
+
+  // Set fallback position (eyes look up)
+  const setFallbackPosition = useCallback(() => {
+    targetLeftOffset.current = { x: 0, y: FALLBACK_OFFSET_Y };
+    targetRightOffset.current = { x: 0, y: FALLBACK_OFFSET_Y };
+    targetBaseOffset.current = { x: 0, y: -BASE_MOVEMENT };
+    targetOverlayOffset.current = { x: 0, y: -OVERLAY_MOVEMENT };
+    targetPerspective.current = { rotateX: PERSPECTIVE_AMOUNT * 0.5, rotateY: 0 };
   }, []);
 
   // Set up event listeners
   useEffect(() => {
+    let hasPointerInput = false;
+    let gyroActive = false;
+
     const handleMouseMove = (e: MouseEvent) => {
+      hasPointerInput = true;
       handlePointerMove(e.clientX, e.clientY);
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length > 0) {
+        hasPointerInput = true;
         handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+
+    // Gyroscope handler for mobile devices
+    const handleDeviceOrientation = (e: DeviceOrientationEvent) => {
+      if (!containerRef.current || e.beta === null || e.gamma === null) return;
+
+      gyroActive = true;
+      const rect = containerRef.current.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      // Convert gyro angles to offset from center
+      // beta: front-to-back tilt (-180 to 180, but typically 0-90 when upright)
+      // gamma: left-to-right tilt (-90 to 90)
+      const betaOffset = (e.beta - GYRO_CENTER_BETA) * GYRO_SENSITIVITY;
+      const gammaOffset = (e.gamma - GYRO_CENTER_GAMMA) * GYRO_SENSITIVITY;
+
+      // Simulate cursor position based on gyro tilt
+      const simulatedX = centerX + gammaOffset;
+      const simulatedY = centerY + betaOffset;
+
+      handlePointerMove(simulatedX, simulatedY);
+    };
+
+    // Check if device is mobile (no fine pointer)
+    const isMobile = window.matchMedia("(pointer: coarse)").matches;
+
+    // Try to set up gyroscope for mobile
+    const setupGyroscope = async () => {
+      if (!isMobile) return;
+
+      try {
+        // iOS 13+ requires permission request
+        const DeviceOrientationEventTyped = DeviceOrientationEvent as unknown as {
+          requestPermission?: () => Promise<"granted" | "denied">;
+        };
+
+        if (typeof DeviceOrientationEventTyped.requestPermission === "function") {
+          const permission = await DeviceOrientationEventTyped.requestPermission();
+          if (permission !== "granted") {
+            setFallbackPosition();
+            return;
+          }
+        }
+
+        window.addEventListener("deviceorientation", handleDeviceOrientation, { passive: true });
+
+        // Check if gyro is actually providing data after a short delay
+        setTimeout(() => {
+          if (!gyroActive && !hasPointerInput) {
+            setFallbackPosition();
+          }
+        }, 1000);
+      } catch {
+        // Gyroscope not available or permission denied
+        setFallbackPosition();
       }
     };
 
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    setupGyroscope();
+
+    // Fallback for mobile without gyro after timeout
+    const fallbackTimeout = setTimeout(() => {
+      if (isMobile && !gyroActive && !hasPointerInput) {
+        setFallbackPosition();
+      }
+    }, 2000);
 
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("deviceorientation", handleDeviceOrientation);
+      clearTimeout(fallbackTimeout);
     };
-  }, [handlePointerMove]);
+  }, [handlePointerMove, setFallbackPosition]);
 
   return (
     <div
@@ -384,33 +541,51 @@ export default function EyeTrackerBall() {
           imagesLoaded ? "opacity-100" : "opacity-0"
         }`}
       >
-        {/* Layer 1: Base image (face without eyeballs) */}
-        <Image
-          src={BASE_IMAGE}
-          alt="Adam"
-          fill
-          priority
-          sizes="(max-width: 640px) 90vw, 450px"
-          className="object-contain grayscale"
-          onLoad={handleImageLoad}
-          unoptimized
-        />
+        {/* Layer 1: Base image (face without eyeballs) with 3D parallax */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            transform: `translate(${baseOffset.x}px, ${baseOffset.y}px) perspective(1000px) rotateX(${perspective.rotateX}deg) rotateY(${perspective.rotateY}deg)`,
+            willChange: "transform",
+          }}
+        >
+          <Image
+            src={BASE_IMAGE}
+            alt="Adam"
+            fill
+            priority
+            sizes="(max-width: 640px) 90vw, 450px"
+            className="object-contain grayscale"
+            onLoad={handleImageLoad}
+            unoptimized
+          />
+        </div>
 
         {/* Layer 2: Eyeballs with 3D lighting */}
         <Eyeball position={LEFT_EYE} offset={leftEyeOffset} size={EYEBALL_SIZE} />
         <Eyeball position={RIGHT_EYE} offset={rightEyeOffset} size={EYEBALL_SIZE} />
 
-        {/* Layer 3: Overlay (whites of eyes to mask eyeballs) */}
-        <Image
-          src={OVERLAY_IMAGE}
-          alt=""
-          fill
-          priority
-          sizes="(max-width: 640px) 90vw, 450px"
-          className="object-contain grayscale"
-          onLoad={handleImageLoad}
-          unoptimized
-        />
+        {/* Layer 3: Overlay (whites of eyes to mask eyeballs) with 3D parallax */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            transform: `translate(${overlayOffset.x}px, ${overlayOffset.y}px) perspective(1000px) rotateX(${perspective.rotateX}deg) rotateY(${perspective.rotateY}deg)`,
+            willChange: "transform",
+          }}
+        >
+          <Image
+            src={OVERLAY_IMAGE}
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 640px) 90vw, 450px"
+            className="object-contain grayscale"
+            onLoad={handleImageLoad}
+            unoptimized
+          />
+        </div>
       </div>
 
       {/* Loading placeholder */}
