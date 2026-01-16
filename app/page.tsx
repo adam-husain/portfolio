@@ -1,3 +1,5 @@
+import EyeTrackerBall from "./components/EyeTrackerBall";
+
 export default function Home() {
   return (
     <>
@@ -27,6 +29,9 @@ export default function Home() {
           </p>
         </div>
       </section>
+
+      {/* Image cursor tracker - positioned at bottom, half visible */}
+      <EyeTrackerBall />
 
       {/* Noscript fallback for SEO */}
       <noscript>
