@@ -9,9 +9,9 @@ const raleway = Raleway({
 });
 
 export const metadata: Metadata = {
-  title: "Adam Husain | Software Engineer & AI Specialist",
+  title: "Adam Husain | Software Engineer & Creative Designer",
   description:
-    "Adam Husain is a Software Engineer and AI Specialist with expertise in Web/Mobile Development, Machine Learning, and Cloud Technologies. Explore his journey from freelance work to leading tech teams.",
+    "Adam Husain is a Software Engineer and Creative Designer with expertise in Web/Mobile Development, Machine Learning, and Cloud Technologies. Explore his journey from freelance work to leading tech teams.",
   keywords: [
     "Adam Husain",
     "Software Engineer",
@@ -27,16 +27,16 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    title: "Adam Husain | Software Engineer & AI Specialist",
+    title: "Adam Husain | Software Engineer & Creative Designer",
     description:
-      "Software Engineer and AI Specialist crafting innovative digital experiences.",
+      "Software Engineer and Creative Designer crafting innovative digital experiences.",
     siteName: "Adam Husain Portfolio",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Adam Husain | Software Engineer & AI Specialist",
+    title: "Adam Husain | Software Engineer & Creative Designer",
     description:
-      "Software Engineer and AI Specialist crafting innovative digital experiences.",
+      "Software Engineer and Creative Designer crafting innovative digital experiences.",
   },
   robots: {
     index: true,

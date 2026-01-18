@@ -13,7 +13,7 @@ Single-page scroll-driven storytelling portfolio. Journey from **space (present)
 
 ### Hero (Top)
 - Name: **Adam Husain**
-- Title: Software Engineer | AI Specialist
+- Title: Software Engineer | Creative Designer
 - Scroll prompt indicator
 - Background: Deep space begins
 

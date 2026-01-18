@@ -4,67 +4,85 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 
 // ============================================
-// CONFIGURABLE CONSTANTS - Adjust these values
+// FACE LAYER SYSTEM
+// ============================================
+// Layer 1: BASE             - Face with blank/filled eye areas (bottom)
+// Layer 2: EYEBALL          - Animated 3D eyeballs that track cursor
+// Layer 3: OVERLAY          - Face with eye socket cutouts (masks eyeballs, shows only iris area)
+// Layer 4a: GLINT_PERSISTENT - Always-visible subtle glasses reflection (follows overlay transforms)
+// Layer 4b: GLINT_ANIMATED   - Diagonal sweep glint effect with feathered edges (cursor-triggered)
+// ============================================
+
+// Face layer images
+const FACE_LAYERS = {
+  BASE: "/images/mine/adam_face_base.png",
+  OVERLAY: "/images/mine/adam_face_overlay.png",
+  GLINT: "/images/mine/adam_glasses_glint.png",
+} as const;
+
+// ============================================
+// EYE CONFIGURATION
 // ============================================
 
 // Eye positions (percentage from top-left of container)
-const LEFT_EYE = {
-  x: 37.5, // percentage from left
-  y: 49.5, // percentage from top
-};
+const LEFT_EYE = { x: 37.5, y: 49.9 };
+const RIGHT_EYE = { x: 61.5, y: 49.95 };
 
-const RIGHT_EYE = {
-  x: 61.5, // percentage from left
-  y: 49.55, // percentage from top
-};
-
-// Eyeball size (percentage of container width)
-const EYEBALL_SIZE = 4.5;
-
-// Maximum movement magnitude (pixels the eyeball can move from center)
-const MOVEMENT_MAGNITUDE = 10;
-
-// Eye tracking tuning
-const CONVERGENCE_MIN_DISTANCE = 100; // Below this distance, full convergence (cross-eye)
-const CONVERGENCE_MAX_DISTANCE = 500; // Above this distance, parallel gaze
-const MIN_CONVERGENCE = 0.15; // Minimum convergence factor (0 = fully parallel)
-const SMOOTHING_FACTOR = 0.15; // Lower = smoother but slower (0.1 - 0.3 recommended)
-
-// Close proximity settings (eyes look forward when cursor is near)
-const PROXIMITY_THRESHOLD_INNER = 50; // Below this distance to nearest eye, fully look forward
-const PROXIMITY_THRESHOLD_OUTER = 150; // Above this distance, normal tracking resumes
-
-// Eyeball colors (iris gradient)
+// Eyeball appearance
+const EYEBALL_SIZE = 4.5; // percentage of container width
 const EYEBALL_COLOR_OUTER = "#0a0a0a";
 const EYEBALL_COLOR_INNER = "#2a2a2a";
 
-// Highlight settings
+// Eyeball highlight
 const HIGHLIGHT_SIZE = 30; // percentage of eyeball size
 const HIGHLIGHT_OFFSET = 25; // percentage offset from center
 const HIGHLIGHT_OPACITY = 0.9;
 
-// 3D parallax settings
-const BASE_MOVEMENT = 1; // Max pixels the base moves (less than overlay for depth)
-const OVERLAY_MOVEMENT = 2; // Max pixels the overlay moves
-const PARALLAX_SMOOTHING = 0.08; // Slower than eyes for subtle effect
-const PERSPECTIVE_AMOUNT = 2; // Max degrees of rotation for perspective tilt
-
-// Gyroscope settings (mobile)
-const GYRO_SENSITIVITY = 15; // How much device tilt affects movement (higher = more sensitive)
-const GYRO_CENTER_BETA = 45; // Neutral phone tilt angle (front-to-back, ~45° is natural holding angle)
-const GYRO_CENTER_GAMMA = 0; // Neutral left-right tilt
-
-// Fallback position when gyro unavailable (eyes look forward)
-const FALLBACK_OFFSET = { x: 0, y: 0 };
-
+// ============================================
+// MOVEMENT & TRACKING (all values as % of container width for linear scaling)
 // ============================================
 
-// Base image (face without eyeballs)
-const BASE_IMAGE = "/images/mine/adam_background-eyeballs-removebg.png";
-// Overlay image (whites of eyes only, to mask eyeballs)
-const OVERLAY_IMAGE = "/images/mine/adam_background-removebg.png";
+// Eye tracking
+const MOVEMENT_MAGNITUDE = 1.8; // % of container width - max eyeball movement from center
+const CONVERGENCE_MIN_DISTANCE = 18; // % - full convergence (cross-eye) below this
+const CONVERGENCE_MAX_DISTANCE = 91; // % - parallel gaze above this
+const MIN_CONVERGENCE = 0.15; // minimum convergence factor (unitless ratio)
+const SMOOTHING_FACTOR = 0.15; // eye movement smoothing (0.1-0.3 recommended)
 
-// Eyeball component with 3D lighting
+// Close proximity (eyes look forward when cursor is near face)
+const PROXIMITY_THRESHOLD_INNER = 9; // % of container width
+const PROXIMITY_THRESHOLD_OUTER = 27; // % of container width
+
+// 3D parallax for face layers
+const LAYER_MOVEMENT = 0.36; // % of container width - max layer movement
+const PARALLAX_SMOOTHING = 0.08;
+const PERSPECTIVE_AMOUNT = 2; // max degrees of rotation
+
+// Gyroscope (mobile)
+const GYRO_SENSITIVITY = 2.7; // % of container width
+const GYRO_CENTER_BETA = 45; // neutral front-to-back tilt (degrees)
+const GYRO_CENTER_GAMMA = 0; // neutral left-right tilt (degrees)
+
+// ============================================
+// GLINT CONFIGURATION
+// ============================================
+
+// Persistent glint (always visible, subtle reflection)
+const GLINT_PERSISTENT_OPACITY = 0.15;
+
+// Animated glint (diagonal sweep effect)
+const GLINT_ANIMATED_OPACITY = 0.15;
+const GLINT_WIDTH = 15; // diagonal stripe width (percentage)
+const GLINT_SKEW = 10; // diagonal angle offset
+const GLINT_FEATHER = 8; // feather width on left/right edges (percentage)
+const GLINT_RIGHT_DELAY = 0.15; // right lens lag behind left (0-1)
+const GLINT_RANGE_START = 55; // screen width % where glint starts
+const GLINT_RANGE_END = 65; // screen width % where glint ends
+
+// ============================================
+// EYEBALL COMPONENT
+// ============================================
+
 interface EyeballProps {
   position: { x: number; y: number };
   offset: { x: number; y: number };
@@ -72,11 +90,8 @@ interface EyeballProps {
 }
 
 function Eyeball({ position, offset, size }: EyeballProps) {
-  // Calculate highlight position (moves opposite to eye movement for parallax)
   const highlightOffsetX = -offset.x * 0.4;
   const highlightOffsetY = -offset.y * 0.4;
-
-  // Calculate shadow direction based on movement
   const shadowX = offset.x * 0.6;
   const shadowY = offset.y * 0.6;
 
@@ -87,13 +102,13 @@ function Eyeball({ position, offset, size }: EyeballProps) {
         left: `${position.x}%`,
         top: `${position.y}%`,
         width: `${size}%`,
-        aspectRatio: "1 / 1", // Force perfect circle
+        aspectRatio: "1 / 1",
         transform: `translate(-50%, -50%) translate(${offset.x}px, ${offset.y}px)`,
         opacity: 0.9,
-        willChange: "transform", // Optimize for animations
+        willChange: "transform",
       }}
     >
-      {/* Outer shadow for depth */}
+      {/* Outer shadow */}
       <div
         className="absolute inset-0 rounded-full"
         style={{
@@ -105,19 +120,17 @@ function Eyeball({ position, offset, size }: EyeballProps) {
         }}
       />
 
-      {/* Main eyeball with deep gradient */}
+      {/* Main eyeball gradient */}
       <div
         className="absolute inset-0 rounded-full overflow-hidden"
         style={{
-          background: `
-            radial-gradient(
-              circle at ${42 - offset.x * 1.5}% ${42 - offset.y * 1.5}%,
-              ${EYEBALL_COLOR_INNER} 0%,
-              ${EYEBALL_COLOR_OUTER} 50%,
-              #000 85%,
-              #000 100%
-            )
-          `,
+          background: `radial-gradient(
+            circle at ${42 - offset.x * 1.5}% ${42 - offset.y * 1.5}%,
+            ${EYEBALL_COLOR_INNER} 0%,
+            ${EYEBALL_COLOR_OUTER} 50%,
+            #000 85%,
+            #000 100%
+          )`,
           boxShadow: `
             inset ${-shadowX * 0.4}px ${-shadowY * 0.4}px 12px rgba(0,0,0,0.8),
             inset 0 0 20px rgba(0,0,0,0.6),
@@ -131,18 +144,16 @@ function Eyeball({ position, offset, size }: EyeballProps) {
         className="absolute rounded-full"
         style={{
           inset: "10%",
-          background: `
-            radial-gradient(
-              circle at ${40 - offset.x}% ${40 - offset.y}%,
-              transparent 30%,
-              rgba(0,0,0,0.4) 70%,
-              rgba(0,0,0,0.6) 100%
-            )
-          `,
+          background: `radial-gradient(
+            circle at ${40 - offset.x}% ${40 - offset.y}%,
+            transparent 30%,
+            rgba(0,0,0,0.4) 70%,
+            rgba(0,0,0,0.6) 100%
+          )`,
         }}
       />
 
-      {/* Primary highlight (top-left specular) */}
+      {/* Primary highlight */}
       <div
         className="absolute rounded-full"
         style={{
@@ -155,7 +166,7 @@ function Eyeball({ position, offset, size }: EyeballProps) {
         }}
       />
 
-      {/* Secondary smaller highlight */}
+      {/* Secondary highlight */}
       <div
         className="absolute rounded-full"
         style={{
@@ -167,7 +178,7 @@ function Eyeball({ position, offset, size }: EyeballProps) {
         }}
       />
 
-      {/* Rim light that follows gaze */}
+      {/* Rim light */}
       <div
         className="absolute inset-0 rounded-full"
         style={{
@@ -183,7 +194,7 @@ function Eyeball({ position, offset, size }: EyeballProps) {
           left: "20%",
           right: "20%",
           height: "15%",
-          background: `radial-gradient(ellipse at center, rgba(255,255,255,0.05) 0%, transparent 70%)`,
+          background: "radial-gradient(ellipse at center, rgba(255,255,255,0.05) 0%, transparent 70%)",
           filter: "blur(2px)",
         }}
       />
@@ -191,94 +202,78 @@ function Eyeball({ position, offset, size }: EyeballProps) {
   );
 }
 
-// Calculate eye offsets for both eyes with reduced cross-eye effect
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+function lerp(current: number, target: number, factor: number): number {
+  return current + (target - current) * factor;
+}
+
 function calculateEyeOffsets(
   cursorX: number,
   cursorY: number,
-  leftEyeCenterX: number,
-  leftEyeCenterY: number,
-  rightEyeCenterX: number,
-  rightEyeCenterY: number,
-  magnitude: number
+  leftEyeCenter: { x: number; y: number },
+  rightEyeCenter: { x: number; y: number },
+  containerWidth: number
 ): { left: { x: number; y: number }; right: { x: number; y: number } } {
-  // Calculate midpoint between eyes
-  const eyesMidX = (leftEyeCenterX + rightEyeCenterX) / 2;
-  const eyesMidY = (leftEyeCenterY + rightEyeCenterY) / 2;
+  // Convert percentage constants to pixels based on container size
+  const magnitude = containerWidth * (MOVEMENT_MAGNITUDE / 100);
+  const convergenceMin = containerWidth * (CONVERGENCE_MIN_DISTANCE / 100);
+  const convergenceMax = containerWidth * (CONVERGENCE_MAX_DISTANCE / 100);
+  const proximityInner = containerWidth * (PROXIMITY_THRESHOLD_INNER / 100);
+  const proximityOuter = containerWidth * (PROXIMITY_THRESHOLD_OUTER / 100);
 
-  // Distance from cursor to eye midpoint
-  const distToCursor = Math.sqrt(
-    Math.pow(cursorX - eyesMidX, 2) + Math.pow(cursorY - eyesMidY, 2)
-  );
+  const eyesMidX = (leftEyeCenter.x + rightEyeCenter.x) / 2;
+  const eyesMidY = (leftEyeCenter.y + rightEyeCenter.y) / 2;
+  const distToCursor = Math.hypot(cursorX - eyesMidX, cursorY - eyesMidY);
 
-  // Individual directions for each eye
-  const leftDx = cursorX - leftEyeCenterX;
-  const leftDy = cursorY - leftEyeCenterY;
-  const leftDist = Math.sqrt(leftDx * leftDx + leftDy * leftDy);
+  const leftDx = cursorX - leftEyeCenter.x;
+  const leftDy = cursorY - leftEyeCenter.y;
+  const leftDist = Math.hypot(leftDx, leftDy);
 
-  const rightDx = cursorX - rightEyeCenterX;
-  const rightDy = cursorY - rightEyeCenterY;
-  const rightDist = Math.sqrt(rightDx * rightDx + rightDy * rightDy);
+  const rightDx = cursorX - rightEyeCenter.x;
+  const rightDy = cursorY - rightEyeCenter.y;
+  const rightDist = Math.hypot(rightDx, rightDy);
 
-  // Calculate proximity factor based on nearest eye
-  // When cursor is close to either eye, eyes look forward
+  // Proximity check - eyes look forward when cursor is close
   const nearestEyeDist = Math.min(leftDist, rightDist);
   const proximityFactor = Math.max(0, Math.min(1,
-    (nearestEyeDist - PROXIMITY_THRESHOLD_INNER) / (PROXIMITY_THRESHOLD_OUTER - PROXIMITY_THRESHOLD_INNER)
+    (nearestEyeDist - proximityInner) / (proximityOuter - proximityInner)
   ));
 
-  // If cursor is very close to an eye, return forward gaze
   if (proximityFactor === 0) {
-    return {
-      left: { x: 0, y: 0 },
-      right: { x: 0, y: 0 },
-    };
+    return { left: { x: 0, y: 0 }, right: { x: 0, y: 0 } };
   }
 
-  // Convergence factor: higher = more cross-eye, lower = more parallel
-  // Ranges from MIN_CONVERGENCE to 1 based on distance
+  // Convergence - blend between cross-eye and parallel gaze
   const normalizedDist = Math.max(0, Math.min(1,
-    (distToCursor - CONVERGENCE_MIN_DISTANCE) / (CONVERGENCE_MAX_DISTANCE - CONVERGENCE_MIN_DISTANCE)
+    (distToCursor - convergenceMin) / (convergenceMax - convergenceMin)
   ));
   const convergenceFactor = 1 - normalizedDist * (1 - MIN_CONVERGENCE);
 
-  // Shared direction (from midpoint to cursor) - used for parallel gaze
   const sharedDx = cursorX - eyesMidX;
   const sharedDy = cursorY - eyesMidY;
-  const sharedDist = Math.sqrt(sharedDx * sharedDx + sharedDy * sharedDy);
+  const sharedDist = Math.hypot(sharedDx, sharedDy);
 
-  // Calculate blended offsets
-  const calculateBlendedOffset = (
-    individualDx: number,
-    individualDy: number,
-    individualDist: number
-  ): { x: number; y: number } => {
-    if (individualDist === 0 && sharedDist === 0) {
-      return { x: 0, y: 0 };
-    }
+  const calculateBlendedOffset = (indDx: number, indDy: number, indDist: number) => {
+    if (indDist === 0 && sharedDist === 0) return { x: 0, y: 0 };
 
-    // Normalized individual direction
-    const indNormX = individualDist > 0 ? individualDx / individualDist : 0;
-    const indNormY = individualDist > 0 ? individualDy / individualDist : 0;
-
-    // Normalized shared direction
+    const indNormX = indDist > 0 ? indDx / indDist : 0;
+    const indNormY = indDist > 0 ? indDy / indDist : 0;
     const sharedNormX = sharedDist > 0 ? sharedDx / sharedDist : 0;
     const sharedNormY = sharedDist > 0 ? sharedDy / sharedDist : 0;
 
-    // Blend between individual (cross-eye) and shared (parallel) directions
     const blendedX = indNormX * convergenceFactor + sharedNormX * (1 - convergenceFactor);
     const blendedY = indNormY * convergenceFactor + sharedNormY * (1 - convergenceFactor);
+    const blendedDist = Math.hypot(blendedX, blendedY);
 
-    // Normalize the blended direction
-    const blendedDist = Math.sqrt(blendedX * blendedX + blendedY * blendedY);
     const finalNormX = blendedDist > 0 ? blendedX / blendedDist : 0;
     const finalNormY = blendedDist > 0 ? blendedY / blendedDist : 0;
 
-    // Apply magnitude with easing based on distance
     const distanceFactor = Math.min(distToCursor, magnitude * 15) / (magnitude * 15);
-    // Use ease-out curve for more natural movement
     const easedFactor = 1 - Math.pow(1 - distanceFactor, 2);
 
-    // Apply proximity factor to blend toward forward gaze when close
     return {
       x: finalNormX * magnitude * easedFactor * proximityFactor,
       y: finalNormY * magnitude * easedFactor * proximityFactor,
@@ -291,248 +286,207 @@ function calculateEyeOffsets(
   };
 }
 
-// Smooth interpolation helper (lerp)
-function lerp(current: number, target: number, factor: number): number {
-  return current + (target - current) * factor;
-}
+// ============================================
+// MAIN COMPONENT
+// ============================================
 
 export default function EyeTrackerBall() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [leftEyeOffset, setLeftEyeOffset] = useState({ x: 0, y: 0 });
-  const [rightEyeOffset, setRightEyeOffset] = useState({ x: 0, y: 0 });
-  const [baseOffset, setBaseOffset] = useState({ x: 0, y: 0 });
-  const [overlayOffset, setOverlayOffset] = useState({ x: 0, y: 0 });
-  const [perspective, setPerspective] = useState({ rotateX: 0, rotateY: 0 });
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const loadedCountRef = useRef(0);
 
-  // Refs for smooth animation
-  const targetLeftOffset = useRef({ x: 0, y: 0 });
-  const targetRightOffset = useRef({ x: 0, y: 0 });
-  const targetBaseOffset = useRef({ x: 0, y: 0 });
-  const targetOverlayOffset = useRef({ x: 0, y: 0 });
-  const targetPerspective = useRef({ rotateX: 0, rotateY: 0 });
-  const currentLeftOffset = useRef({ x: 0, y: 0 });
-  const currentRightOffset = useRef({ x: 0, y: 0 });
-  const currentBaseOffset = useRef({ x: 0, y: 0 });
-  const currentOverlayOffset = useRef({ x: 0, y: 0 });
-  const currentPerspective = useRef({ rotateX: 0, rotateY: 0 });
+  // Layer state
+  const [leftEyeOffset, setLeftEyeOffset] = useState({ x: 0, y: 0 });
+  const [rightEyeOffset, setRightEyeOffset] = useState({ x: 0, y: 0 });
+  const [layerOffset, setLayerOffset] = useState({ x: 0, y: 0 });
+  const [perspective, setPerspective] = useState({ rotateX: 0, rotateY: 0 });
+  const [leftGlintPos, setLeftGlintPos] = useState(-GLINT_WIDTH - GLINT_SKEW);
+  const [rightGlintPos, setRightGlintPos] = useState(-GLINT_WIDTH - GLINT_SKEW);
+
+  // Animation targets
+  const targets = useRef({
+    leftEye: { x: 0, y: 0 },
+    rightEye: { x: 0, y: 0 },
+    layer: { x: 0, y: 0 },
+    perspective: { rotateX: 0, rotateY: 0 },
+    leftGlint: -GLINT_WIDTH - GLINT_SKEW,
+    rightGlint: -GLINT_WIDTH - GLINT_SKEW,
+  });
+
+  // Current animated values
+  const current = useRef({
+    leftEye: { x: 0, y: 0 },
+    rightEye: { x: 0, y: 0 },
+    layer: { x: 0, y: 0 },
+    perspective: { rotateX: 0, rotateY: 0 },
+    leftGlint: -GLINT_WIDTH - GLINT_SKEW,
+    rightGlint: -GLINT_WIDTH - GLINT_SKEW,
+  });
+
   const animationFrameRef = useRef<number | null>(null);
 
   const handleImageLoad = useCallback(() => {
     loadedCountRef.current += 1;
-    if (loadedCountRef.current >= 2) {
+    if (loadedCountRef.current >= 5) { // BASE + OVERLAY + PERSISTENT_GLINT + 2x ANIMATED_GLINT
       setImagesLoaded(true);
     }
   }, []);
 
-  // Smooth animation loop
+  // Animation loop
   useEffect(() => {
     const animate = () => {
-      // Lerp current position towards target
-      currentLeftOffset.current = {
-        x: lerp(currentLeftOffset.current.x, targetLeftOffset.current.x, SMOOTHING_FACTOR),
-        y: lerp(currentLeftOffset.current.y, targetLeftOffset.current.y, SMOOTHING_FACTOR),
-      };
-      currentRightOffset.current = {
-        x: lerp(currentRightOffset.current.x, targetRightOffset.current.x, SMOOTHING_FACTOR),
-        y: lerp(currentRightOffset.current.y, targetRightOffset.current.y, SMOOTHING_FACTOR),
-      };
-      currentBaseOffset.current = {
-        x: lerp(currentBaseOffset.current.x, targetBaseOffset.current.x, PARALLAX_SMOOTHING),
-        y: lerp(currentBaseOffset.current.y, targetBaseOffset.current.y, PARALLAX_SMOOTHING),
-      };
-      currentOverlayOffset.current = {
-        x: lerp(currentOverlayOffset.current.x, targetOverlayOffset.current.x, PARALLAX_SMOOTHING),
-        y: lerp(currentOverlayOffset.current.y, targetOverlayOffset.current.y, PARALLAX_SMOOTHING),
-      };
-      currentPerspective.current = {
-        rotateX: lerp(currentPerspective.current.rotateX, targetPerspective.current.rotateX, PARALLAX_SMOOTHING),
-        rotateY: lerp(currentPerspective.current.rotateY, targetPerspective.current.rotateY, PARALLAX_SMOOTHING),
-      };
+      const c = current.current;
+      const t = targets.current;
 
-      // Only update state if there's meaningful change (optimization)
-      const leftDiff = Math.abs(currentLeftOffset.current.x - leftEyeOffset.x) +
-                       Math.abs(currentLeftOffset.current.y - leftEyeOffset.y);
-      const rightDiff = Math.abs(currentRightOffset.current.x - rightEyeOffset.x) +
-                        Math.abs(currentRightOffset.current.y - rightEyeOffset.y);
-      const baseDiff = Math.abs(currentBaseOffset.current.x - baseOffset.x) +
-                       Math.abs(currentBaseOffset.current.y - baseOffset.y);
-      const overlayDiff = Math.abs(currentOverlayOffset.current.x - overlayOffset.x) +
-                          Math.abs(currentOverlayOffset.current.y - overlayOffset.y);
-      const perspectiveDiff = Math.abs(currentPerspective.current.rotateX - perspective.rotateX) +
-                              Math.abs(currentPerspective.current.rotateY - perspective.rotateY);
+      // Lerp all values
+      c.leftEye.x = lerp(c.leftEye.x, t.leftEye.x, SMOOTHING_FACTOR);
+      c.leftEye.y = lerp(c.leftEye.y, t.leftEye.y, SMOOTHING_FACTOR);
+      c.rightEye.x = lerp(c.rightEye.x, t.rightEye.x, SMOOTHING_FACTOR);
+      c.rightEye.y = lerp(c.rightEye.y, t.rightEye.y, SMOOTHING_FACTOR);
+      c.layer.x = lerp(c.layer.x, t.layer.x, PARALLAX_SMOOTHING);
+      c.layer.y = lerp(c.layer.y, t.layer.y, PARALLAX_SMOOTHING);
+      c.perspective.rotateX = lerp(c.perspective.rotateX, t.perspective.rotateX, PARALLAX_SMOOTHING);
+      c.perspective.rotateY = lerp(c.perspective.rotateY, t.perspective.rotateY, PARALLAX_SMOOTHING);
+      c.leftGlint = lerp(c.leftGlint, t.leftGlint, PARALLAX_SMOOTHING);
+      c.rightGlint = lerp(c.rightGlint, t.rightGlint, PARALLAX_SMOOTHING);
 
-      if (leftDiff > 0.01 || rightDiff > 0.01) {
-        setLeftEyeOffset({ ...currentLeftOffset.current });
-        setRightEyeOffset({ ...currentRightOffset.current });
+      // Update state only when there's meaningful change
+      const eyeDiff = Math.abs(c.leftEye.x - leftEyeOffset.x) + Math.abs(c.leftEye.y - leftEyeOffset.y) +
+                      Math.abs(c.rightEye.x - rightEyeOffset.x) + Math.abs(c.rightEye.y - rightEyeOffset.y);
+      const layerDiff = Math.abs(c.layer.x - layerOffset.x) + Math.abs(c.layer.y - layerOffset.y);
+      const perspectiveDiff = Math.abs(c.perspective.rotateX - perspective.rotateX) +
+                              Math.abs(c.perspective.rotateY - perspective.rotateY);
+      const glintDiff = Math.abs(c.leftGlint - leftGlintPos) + Math.abs(c.rightGlint - rightGlintPos);
+
+      if (eyeDiff > 0.01) {
+        setLeftEyeOffset({ ...c.leftEye });
+        setRightEyeOffset({ ...c.rightEye });
       }
-      if (baseDiff > 0.01) {
-        setBaseOffset({ ...currentBaseOffset.current });
-      }
-      if (overlayDiff > 0.01) {
-        setOverlayOffset({ ...currentOverlayOffset.current });
+      if (layerDiff > 0.01) {
+        setLayerOffset({ ...c.layer });
       }
       if (perspectiveDiff > 0.001) {
-        setPerspective({ ...currentPerspective.current });
+        setPerspective({ ...c.perspective });
+      }
+      if (glintDiff > 0.1) {
+        setLeftGlintPos(c.leftGlint);
+        setRightGlintPos(c.rightGlint);
       }
 
       animationFrameRef.current = requestAnimationFrame(animate);
     };
 
     animationFrameRef.current = requestAnimationFrame(animate);
-
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [leftEyeOffset, rightEyeOffset, baseOffset, overlayOffset, perspective]);
+  }, [leftEyeOffset, rightEyeOffset, layerOffset, perspective, leftGlintPos, rightGlintPos]);
 
-  // Handle mouse/touch movement
+  // Pointer movement handler
   const handlePointerMove = useCallback((clientX: number, clientY: number) => {
     if (!containerRef.current) return;
 
     const rect = containerRef.current.getBoundingClientRect();
+    const t = targets.current;
 
-    // Calculate eye centers in screen coordinates
-    const leftEyeCenterX = rect.left + (LEFT_EYE.x / 100) * rect.width;
-    const leftEyeCenterY = rect.top + (LEFT_EYE.y / 100) * rect.height;
-    const rightEyeCenterX = rect.left + (RIGHT_EYE.x / 100) * rect.width;
-    const rightEyeCenterY = rect.top + (RIGHT_EYE.y / 100) * rect.height;
+    // Calculate eye tracking
+    const leftEyeCenter = {
+      x: rect.left + (LEFT_EYE.x / 100) * rect.width,
+      y: rect.top + (LEFT_EYE.y / 100) * rect.height,
+    };
+    const rightEyeCenter = {
+      x: rect.left + (RIGHT_EYE.x / 100) * rect.width,
+      y: rect.top + (RIGHT_EYE.y / 100) * rect.height,
+    };
 
-    // Calculate blended offsets for both eyes (reduces cross-eye effect)
-    const offsets = calculateEyeOffsets(
-      clientX,
-      clientY,
-      leftEyeCenterX,
-      leftEyeCenterY,
-      rightEyeCenterX,
-      rightEyeCenterY,
-      MOVEMENT_MAGNITUDE
-    );
+    const offsets = calculateEyeOffsets(clientX, clientY, leftEyeCenter, rightEyeCenter, rect.width);
+    t.leftEye = offsets.left;
+    t.rightEye = offsets.right;
 
-    // Update targets (animation loop will smoothly interpolate)
-    targetLeftOffset.current = offsets.left;
-    targetRightOffset.current = offsets.right;
-
-    // Calculate parallax offsets (subtle 3D effect)
+    // Calculate parallax (layers move opposite to cursor)
+    // Convert percentage to pixels based on container width
+    const layerMovementPx = rect.width * (LAYER_MOVEMENT / 100);
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    const dx = clientX - centerX;
-    const dy = clientY - centerY;
     const maxDist = Math.max(rect.width, rect.height);
-    const normalizedX = dx / maxDist;
-    const normalizedY = dy / maxDist;
+    const normalizedX = (clientX - centerX) / maxDist;
+    const normalizedY = (clientY - centerY) / maxDist;
 
-    // Base moves less than overlay for layered depth effect
-    targetBaseOffset.current = {
-      x: normalizedX * BASE_MOVEMENT * 2,
-      y: normalizedY * BASE_MOVEMENT * 2,
+    t.layer = {
+      x: -normalizedX * layerMovementPx * 2,
+      y: -normalizedY * layerMovementPx * 2,
     };
 
-    targetOverlayOffset.current = {
-      x: normalizedX * OVERLAY_MOVEMENT * 2,
-      y: normalizedY * OVERLAY_MOVEMENT * 2,
-    };
-
-    // Perspective tilt (rotateX is inverted for natural feel)
-    targetPerspective.current = {
+    t.perspective = {
       rotateX: -normalizedY * PERSPECTIVE_AMOUNT,
       rotateY: normalizedX * PERSPECTIVE_AMOUNT,
     };
+
+    // Calculate glint position (tracks cursor between GLINT_RANGE_START-END % of screen width)
+    const screenWidthPercent = (clientX / window.innerWidth) * 100;
+    let normalizedPos = (screenWidthPercent - GLINT_RANGE_START) / (GLINT_RANGE_END - GLINT_RANGE_START);
+    normalizedPos = Math.max(0, Math.min(1, normalizedPos));
+
+    const glintStart = -GLINT_WIDTH - GLINT_SKEW;
+    const glintEnd = 50 + GLINT_SKEW;
+
+    t.leftGlint = glintStart + normalizedPos * (glintEnd - glintStart);
+    const delayedPos = Math.max(0, normalizedPos - GLINT_RIGHT_DELAY) / (1 - GLINT_RIGHT_DELAY);
+    t.rightGlint = glintStart + delayedPos * (glintEnd - glintStart);
   }, []);
 
-  // Set fallback position (eyes look forward) - sets both state and targets for immediate effect
+  // Reset to fallback position
   const setFallbackPosition = useCallback(() => {
-    const noOffset = { x: 0, y: 0 };
-    const noPerspective = { rotateX: 0, rotateY: 0 };
+    const zero = { x: 0, y: 0 };
+    const zeroPerspective = { rotateX: 0, rotateY: 0 };
+    const glintOff = -GLINT_WIDTH - GLINT_SKEW;
 
-    // Set targets
-    targetLeftOffset.current = FALLBACK_OFFSET;
-    targetRightOffset.current = FALLBACK_OFFSET;
-    targetBaseOffset.current = noOffset;
-    targetOverlayOffset.current = noOffset;
-    targetPerspective.current = noPerspective;
+    targets.current = { leftEye: zero, rightEye: zero, layer: zero, perspective: zeroPerspective, leftGlint: glintOff, rightGlint: glintOff };
+    current.current = { leftEye: { ...zero }, rightEye: { ...zero }, layer: { ...zero }, perspective: { ...zeroPerspective }, leftGlint: glintOff, rightGlint: glintOff };
 
-    // Set state directly for immediate effect
-    currentLeftOffset.current = FALLBACK_OFFSET;
-    currentRightOffset.current = FALLBACK_OFFSET;
-    currentBaseOffset.current = noOffset;
-    currentOverlayOffset.current = noOffset;
-    currentPerspective.current = noPerspective;
-
-    setLeftEyeOffset(FALLBACK_OFFSET);
-    setRightEyeOffset(FALLBACK_OFFSET);
-    setBaseOffset(noOffset);
-    setOverlayOffset(noOffset);
-    setPerspective(noPerspective);
+    setLeftEyeOffset(zero);
+    setRightEyeOffset(zero);
+    setLayerOffset(zero);
+    setPerspective(zeroPerspective);
+    setLeftGlintPos(glintOff);
+    setRightGlintPos(glintOff);
   }, []);
 
-  // Set up event listeners
+  // Event listeners
   useEffect(() => {
-    let gyroActive = false;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      handlePointerMove(e.clientX, e.clientY);
-    };
-
+    const handleMouseMove = (e: MouseEvent) => handlePointerMove(e.clientX, e.clientY);
     const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length > 0) {
-        handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
-      }
+      if (e.touches.length > 0) handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
     };
 
-    // Gyroscope handler for mobile devices
     const handleDeviceOrientation = (e: DeviceOrientationEvent) => {
       if (!containerRef.current || e.beta === null || e.gamma === null) return;
-
-      gyroActive = true;
       const rect = containerRef.current.getBoundingClientRect();
+      // Convert percentage to pixels based on container width
+      const gyroSensitivityPx = rect.width * (GYRO_SENSITIVITY / 100);
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
-
-      // Convert gyro angles to offset from center
-      // beta: front-to-back tilt (-180 to 180, but typically 0-90 when upright)
-      // gamma: left-to-right tilt (-90 to 90)
-      const betaOffset = (e.beta - GYRO_CENTER_BETA) * GYRO_SENSITIVITY;
-      const gammaOffset = (e.gamma - GYRO_CENTER_GAMMA) * GYRO_SENSITIVITY;
-
-      // Simulate cursor position based on gyro tilt
-      const simulatedX = centerX + gammaOffset;
-      const simulatedY = centerY + betaOffset;
-
+      const simulatedX = centerX + (e.gamma - GYRO_CENTER_GAMMA) * gyroSensitivityPx;
+      const simulatedY = centerY + (e.beta - GYRO_CENTER_BETA) * gyroSensitivityPx;
       handlePointerMove(simulatedX, simulatedY);
     };
 
-    // Check if device is mobile (no fine pointer)
     const isMobile = window.matchMedia("(pointer: coarse)").matches;
+    if (isMobile) setFallbackPosition();
 
-    // On mobile, set fallback immediately - gyro will override if it works
-    if (isMobile) {
-      setFallbackPosition();
-    }
-
-    // Try to set up gyroscope for mobile
     const setupGyroscope = async () => {
       if (!isMobile) return;
-
       try {
-        // iOS 13+ requires permission request
         const DeviceOrientationEventTyped = DeviceOrientationEvent as unknown as {
           requestPermission?: () => Promise<"granted" | "denied">;
         };
-
         if (typeof DeviceOrientationEventTyped.requestPermission === "function") {
           const permission = await DeviceOrientationEventTyped.requestPermission();
-          if (permission !== "granted") {
-            return; // Keep fallback position
-          }
+          if (permission !== "granted") return;
         }
-
         window.addEventListener("deviceorientation", handleDeviceOrientation, { passive: true });
       } catch {
-        // Gyroscope not available or permission denied - fallback already set
+        // Gyroscope not available
       }
     };
 
@@ -547,33 +501,62 @@ export default function EyeTrackerBall() {
     };
   }, [handlePointerMove, setFallbackPosition]);
 
+  // Common transform for all face layers
+  const layerTransform = `translate(${layerOffset.x}px, ${layerOffset.y}px) perspective(1000px) rotateX(${perspective.rotateX}deg) rotateY(${perspective.rotateY}deg)`;
+
+  // Glint clip-path helper (hard edges for persistent glint)
+  const getGlintClipPath = (pos: number, isRight: boolean) => {
+    const offset = isRight ? 50 : 0;
+    const min = isRight ? 50 : 0;
+    const max = isRight ? 100 : 50;
+    const clamp = (v: number) => Math.min(max, Math.max(min, v));
+
+    return `polygon(
+      ${clamp(offset + pos + GLINT_SKEW)}% 0%,
+      ${clamp(offset + pos + GLINT_WIDTH + GLINT_SKEW)}% 0%,
+      ${clamp(offset + pos + GLINT_WIDTH)}% 100%,
+      ${clamp(offset + pos)}% 100%
+    )`;
+  };
+
+  // Animated glint mask helper (feathered left/right edges, sharp top/bottom)
+  // Uses a linear gradient perpendicular to the diagonal stripe direction
+  const getGlintMask = (pos: number, isRight: boolean) => {
+    const offset = isRight ? 50 : 0;
+    const min = isRight ? 50 : 0;
+    const max = isRight ? 100 : 50;
+    const clamp = (v: number) => Math.min(max, Math.max(min, v));
+
+    // Calculate the stripe edges (average of top and bottom positions for gradient)
+    const leftEdge = clamp(offset + pos + GLINT_SKEW / 2);
+    const rightEdge = clamp(offset + pos + GLINT_WIDTH + GLINT_SKEW / 2);
+
+    // Gradient angle: perpendicular to stripe direction (roughly horizontal, ~96deg due to skew)
+    const angle = 90 + Math.atan2(GLINT_SKEW, 100) * (180 / Math.PI);
+
+    // Create gradient with feathered left/right edges
+    return `linear-gradient(
+      ${angle.toFixed(1)}deg,
+      transparent 0%,
+      transparent ${Math.max(min, leftEdge - GLINT_FEATHER)}%,
+      white ${leftEdge}%,
+      white ${rightEdge}%,
+      transparent ${Math.min(max, rightEdge + GLINT_FEATHER)}%,
+      transparent 100%
+    )`;
+  };
+
   return (
     <div
       ref={containerRef}
-      className="fixed bottom-0 left-1/2 z-20 pointer-events-none select-none"
-      style={{
-        transform: "translateX(-50%) translateY(35%)",
-        width: "min(550px, 95vw)",
-        aspectRatio: "550 / 800",
-      }}
+      className="absolute inset-0 pointer-events-none select-none"
     >
-      {/* Container for all layers */}
-      <div
-        className={`relative w-full h-full transition-opacity duration-300 ${
-          imagesLoaded ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        {/* Layer 1: Base image (face without eyeballs) with 3D parallax */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            transform: `translate(${baseOffset.x}px, ${baseOffset.y}px) perspective(1000px) rotateX(${perspective.rotateX}deg) rotateY(${perspective.rotateY}deg)`,
-            willChange: "transform",
-          }}
-        >
+      <div className={`relative w-full h-full transition-opacity duration-300 ${imagesLoaded ? "opacity-100" : "opacity-0"}`}>
+
+        {/* LAYER 1: BASE - Face with blank eye areas */}
+        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform" }}>
           <Image
-            src={BASE_IMAGE}
+            src={FACE_LAYERS.BASE}
             alt="Adam"
             fill
             priority
@@ -584,21 +567,14 @@ export default function EyeTrackerBall() {
           />
         </div>
 
-        {/* Layer 2: Eyeballs with 3D lighting */}
+        {/* LAYER 2: EYEBALLS - Animated 3D eyeballs */}
         <Eyeball position={LEFT_EYE} offset={leftEyeOffset} size={EYEBALL_SIZE} />
         <Eyeball position={RIGHT_EYE} offset={rightEyeOffset} size={EYEBALL_SIZE} />
 
-        {/* Layer 3: Overlay (whites of eyes to mask eyeballs) with 3D parallax */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            transform: `translate(${overlayOffset.x}px, ${overlayOffset.y}px) perspective(1000px) rotateX(${perspective.rotateX}deg) rotateY(${perspective.rotateY}deg)`,
-            willChange: "transform",
-          }}
-        >
+        {/* LAYER 3: OVERLAY - Face with eye socket cutouts (masks eyeballs) */}
+        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform" }}>
           <Image
-            src={OVERLAY_IMAGE}
+            src={FACE_LAYERS.OVERLAY}
             alt=""
             fill
             priority
@@ -608,17 +584,99 @@ export default function EyeTrackerBall() {
             unoptimized
           />
         </div>
+
+        {/* ================================================
+            LAYER 4a: GLINT_PERSISTENT
+            Always-visible subtle reflection that follows overlay transforms.
+            Provides base ambient reflection on glasses.
+            ================================================ */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            transform: layerTransform,
+            opacity: GLINT_PERSISTENT_OPACITY,
+            willChange: "transform",
+            pointerEvents: "none",
+          }}
+        >
+          <Image
+            src={FACE_LAYERS.GLINT}
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 640px) 90vw, 450px"
+            className="object-contain"
+            onLoad={handleImageLoad}
+            unoptimized
+          />
+        </div>
+
+        {/* ================================================
+            LAYER 4b: GLINT_ANIMATED (Left Lens)
+            Diagonal sweep glint with feathered left/right edges.
+            Uses gradient mask for soft sides, sharp top/bottom.
+            Triggered by cursor movement across screen.
+            ================================================ */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            transform: layerTransform,
+            maskImage: getGlintMask(leftGlintPos, false),
+            WebkitMaskImage: getGlintMask(leftGlintPos, false),
+            opacity: GLINT_ANIMATED_OPACITY,
+            willChange: "transform",
+            pointerEvents: "none",
+          }}
+        >
+          <Image
+            src={FACE_LAYERS.GLINT}
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 640px) 90vw, 450px"
+            className="object-contain"
+            style={{ clipPath: "inset(0 50% 0 0)" }}
+            onLoad={handleImageLoad}
+            unoptimized
+          />
+        </div>
+
+        {/* ================================================
+            LAYER 4b: GLINT_ANIMATED (Right Lens)
+            Diagonal sweep glint with feathered left/right edges.
+            Uses gradient mask for soft sides, sharp top/bottom.
+            Slightly delayed behind left lens for natural feel.
+            ================================================ */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            transform: layerTransform,
+            maskImage: getGlintMask(rightGlintPos, true),
+            WebkitMaskImage: getGlintMask(rightGlintPos, true),
+            opacity: GLINT_ANIMATED_OPACITY,
+            willChange: "transform",
+            pointerEvents: "none",
+          }}
+        >
+          <Image
+            src={FACE_LAYERS.GLINT}
+            alt=""
+            fill
+            sizes="(max-width: 640px) 90vw, 450px"
+            className="object-contain"
+            style={{ clipPath: "inset(0 0 0 50%)" }}
+            onLoad={handleImageLoad}
+            unoptimized
+          />
+        </div>
       </div>
 
       {/* Loading placeholder */}
       {!imagesLoaded && (
-        <div
-          className="absolute inset-0 animate-pulse bg-secondary/20 rounded-full"
-          style={{
-            width: "100%",
-            height: "100%",
-          }}
-        />
+        <div className="absolute inset-0 animate-pulse bg-secondary/20 rounded-full" style={{ width: "100%", height: "100%" }} />
       )}
     </div>
   );

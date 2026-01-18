@@ -20,14 +20,14 @@ export default function Home() {
         </div>
 
         {/* Main content */}
-        <div className="relative z-10 text-center px-4 sm:px-6 max-w-[90vw] mb-[15vh] sm:mb-[18vh] lg:mb-[20vh]">
-          <p className="text-white text-sm sm:text-base lg:text-lg tracking-[0.2em] uppercase mb-3 font-medium">
+        <div className="relative z-10 text-center px-4 sm:px-6 max-w-[90vw] mb-[23%]!">
+          <p className="text-white text-xl! tracking-[0.2em] uppercase mb-6! font-medium">
             {siteConfig.greeting}
           </p>
           <h1 className="mb-4">
             <AnimatedName />
           </h1>
-          <p className="text-muted-foreground text-base sm:text-lg lg:text-xl font-normal flex flex-col sm:flex-row flex-wrap items-center justify-center gap-1 sm:gap-2">
+          <p className="text-muted-foreground! text-xl! font-normal flex flex-col sm:flex-row flex-wrap items-center justify-center gap-1 sm:gap-2 mt-6!">
             <span>{role1}</span>
             <span className="hidden sm:inline text-primary/60" aria-hidden="true">|</span>
             <span>{role2}</span>
@@ -39,7 +39,16 @@ export default function Home() {
       <CloudAtmosphere />
 
       {/* My face that tracks my eye. Positioned at bottom, half visible */}
-      <EyeTrackerBall />
+      <div
+        className="fixed bottom-0 left-1/2 z-20 pointer-events-none"
+        style={{
+          transform: "translateX(-50%) translateY(35%)",
+          height: "min(100vh, 140vw)",
+          aspectRatio: "550 / 800",
+        }}
+      >
+        <EyeTrackerBall />
+      </div>
 
       {/* Noscript fallback for SEO */}
       <noscript>
