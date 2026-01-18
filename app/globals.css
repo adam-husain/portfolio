@@ -95,11 +95,43 @@ body {
   line-height: 1.6;
 }
 
+/* Animated name SVG - handwriting effect */
+.animated-name path {
+  /* Initial state: stroke hidden, fill transparent */
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  fill-opacity: 0;
+}
+
+.animated-name[data-animating="true"] path {
+  animation:
+    write-stroke var(--letter-duration) ease-out var(--letter-delay) forwards,
+    write-fill calc(var(--letter-duration) * 0.4) ease-in var(--fill-delay) forwards;
+}
+
+@keyframes write-stroke {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes write-fill {
+  to {
+    fill-opacity: 1;
+  }
+}
+
 /* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   .stars-small,
   .stars-medium,
   .stars-large {
+    animation: none !important;
+  }
+
+  .animated-name path {
+    stroke-dashoffset: 0 !important;
+    fill-opacity: 1 !important;
     animation: none !important;
   }
 }

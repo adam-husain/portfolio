@@ -30,6 +30,10 @@ const CONVERGENCE_MAX_DISTANCE = 500; // Above this distance, parallel gaze
 const MIN_CONVERGENCE = 0.15; // Minimum convergence factor (0 = fully parallel)
 const SMOOTHING_FACTOR = 0.15; // Lower = smoother but slower (0.1 - 0.3 recommended)
 
+// Close proximity settings (eyes look forward when cursor is near)
+const PROXIMITY_THRESHOLD_INNER = 50; // Below this distance to nearest eye, fully look forward
+const PROXIMITY_THRESHOLD_OUTER = 150; // Above this distance, normal tracking resumes
+
 // Eyeball colors (iris gradient)
 const EYEBALL_COLOR_OUTER = "#0a0a0a";
 const EYEBALL_COLOR_INNER = "#2a2a2a";
@@ -206,6 +210,30 @@ function calculateEyeOffsets(
     Math.pow(cursorX - eyesMidX, 2) + Math.pow(cursorY - eyesMidY, 2)
   );
 
+  // Individual directions for each eye
+  const leftDx = cursorX - leftEyeCenterX;
+  const leftDy = cursorY - leftEyeCenterY;
+  const leftDist = Math.sqrt(leftDx * leftDx + leftDy * leftDy);
+
+  const rightDx = cursorX - rightEyeCenterX;
+  const rightDy = cursorY - rightEyeCenterY;
+  const rightDist = Math.sqrt(rightDx * rightDx + rightDy * rightDy);
+
+  // Calculate proximity factor based on nearest eye
+  // When cursor is close to either eye, eyes look forward
+  const nearestEyeDist = Math.min(leftDist, rightDist);
+  const proximityFactor = Math.max(0, Math.min(1,
+    (nearestEyeDist - PROXIMITY_THRESHOLD_INNER) / (PROXIMITY_THRESHOLD_OUTER - PROXIMITY_THRESHOLD_INNER)
+  ));
+
+  // If cursor is very close to an eye, return forward gaze
+  if (proximityFactor === 0) {
+    return {
+      left: { x: 0, y: 0 },
+      right: { x: 0, y: 0 },
+    };
+  }
+
   // Convergence factor: higher = more cross-eye, lower = more parallel
   // Ranges from MIN_CONVERGENCE to 1 based on distance
   const normalizedDist = Math.max(0, Math.min(1,
@@ -217,15 +245,6 @@ function calculateEyeOffsets(
   const sharedDx = cursorX - eyesMidX;
   const sharedDy = cursorY - eyesMidY;
   const sharedDist = Math.sqrt(sharedDx * sharedDx + sharedDy * sharedDy);
-
-  // Individual directions for each eye
-  const leftDx = cursorX - leftEyeCenterX;
-  const leftDy = cursorY - leftEyeCenterY;
-  const leftDist = Math.sqrt(leftDx * leftDx + leftDy * leftDy);
-
-  const rightDx = cursorX - rightEyeCenterX;
-  const rightDy = cursorY - rightEyeCenterY;
-  const rightDist = Math.sqrt(rightDx * rightDx + rightDy * rightDy);
 
   // Calculate blended offsets
   const calculateBlendedOffset = (
@@ -259,9 +278,10 @@ function calculateEyeOffsets(
     // Use ease-out curve for more natural movement
     const easedFactor = 1 - Math.pow(1 - distanceFactor, 2);
 
+    // Apply proximity factor to blend toward forward gaze when close
     return {
-      x: finalNormX * magnitude * easedFactor,
-      y: finalNormY * magnitude * easedFactor,
+      x: finalNormX * magnitude * easedFactor * proximityFactor,
+      y: finalNormY * magnitude * easedFactor * proximityFactor,
     };
   };
 
@@ -532,7 +552,7 @@ export default function EyeTrackerBall() {
       ref={containerRef}
       className="fixed bottom-0 left-1/2 z-20 pointer-events-none select-none"
       style={{
-        transform: "translateX(-50%) translateY(40%)",
+        transform: "translateX(-50%) translateY(35%)",
         width: "min(550px, 95vw)",
         aspectRatio: "550 / 800",
       }}
