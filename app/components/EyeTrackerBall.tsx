@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
+import posthog from "posthog-js";
 
 // ============================================
 // FACE LAYER SYSTEM
@@ -294,6 +295,7 @@ export default function EyeTrackerBall() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const loadedCountRef = useRef(0);
+  const hasTrackedInteraction = useRef(false);
 
   // Layer state
   const [leftEyeOffset, setLeftEyeOffset] = useState({ x: 0, y: 0 });
@@ -385,6 +387,16 @@ export default function EyeTrackerBall() {
   // Pointer movement handler
   const handlePointerMove = useCallback((clientX: number, clientY: number) => {
     if (!containerRef.current) return;
+
+    // Track first interaction with eye tracker
+    if (!hasTrackedInteraction.current) {
+      hasTrackedInteraction.current = true;
+      posthog.capture("eye_tracker_interaction", {
+        interaction_type: "first_movement",
+        viewport_width: window.innerWidth,
+        viewport_height: window.innerHeight,
+      });
+    }
 
     const rect = containerRef.current.getBoundingClientRect();
     const t = targets.current;

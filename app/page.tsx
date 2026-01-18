@@ -36,7 +36,7 @@ export default function Home() {
       </section>
 
       {/* Volumetric clouds around the face */}
-      <CloudAtmosphere />
+      {/* <CloudAtmosphere /> */}
 
       {/* My face that tracks my eye. Positioned at bottom, half visible */}
       <div

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import posthog from "posthog-js";
 
 // Animation timing constants
-const TOTAL_DURATION_MS = 3000;
+const TOTAL_DURATION_MS = 5000;
 const LETTER_COUNT = 11;
 const OVERLAP_FACTOR = 0.6;
 
@@ -63,6 +64,16 @@ export default function AnimatedName() {
   useEffect(() => {
     // Trigger animation on mount
     setIsAnimating(true);
+
+    // Track when animation completes
+    const animationCompleteTimeout = setTimeout(() => {
+      posthog.capture("name_animation_completed", {
+        animation_duration_ms: TOTAL_DURATION_MS,
+        letter_count: LETTER_COUNT,
+      });
+    }, TOTAL_DURATION_MS);
+
+    return () => clearTimeout(animationCompleteTimeout);
   }, []);
 
   return (
