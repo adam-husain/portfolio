@@ -75,7 +75,7 @@ export default function MoonReveal() {
       {/* Glow effect ABOVE the masked moon - visible on intro section */}
       <div
         ref={glowRef}
-        className="fixed inset-x-0 bottom-[-10vh]! z-20 pointer-events-none"
+        className="fixed inset-x-0 bottom-[-10vh]! z-[19] pointer-events-none"
         style={
           {
             "--glow-y": "100%",
@@ -91,7 +91,7 @@ export default function MoonReveal() {
       {/* Masked moon container */}
       <div
         ref={maskRef}
-        className="fixed inset-0 z-30 pointer-events-none overflow-hidden"
+        className="fixed inset-0 z-[20] pointer-events-none overflow-hidden"
         style={
           {
             "--mask-progress": "0%",
