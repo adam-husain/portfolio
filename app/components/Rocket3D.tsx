@@ -44,17 +44,27 @@ interface TrailPoint {
 function RocketModel({
   scrollProgress,
   onScreenPositionUpdate,
+  onReady,
 }: {
   scrollProgress: React.MutableRefObject<number>;
   onScreenPositionUpdate: (pos: ScreenPosition) => void;
+  onReady: () => void;
 }) {
   const { scene } = useGLTF("/assets/rocket.glb");
   const rocketRef = useRef<THREE.Group>(null);
   const idleTimeRef = useRef(0);
+  const boosterVectorRef = useRef(new THREE.Vector3());
+  const hasInitialized = useRef(false);
   const { camera, size } = useThree();
 
   useFrame((_, delta) => {
     if (!rocketRef.current) return;
+
+    // Signal ready after first frame positions the rocket correctly
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      onReady();
+    }
 
     idleTimeRef.current += delta;
     const t = idleTimeRef.current;
@@ -102,15 +112,15 @@ function RocketModel({
     const boosterX = rocketX + boosterDirX * scaledBoosterOffset;
     const boosterY = rocketY + boosterDirY * scaledBoosterOffset;
 
-    // Project booster 3D position to screen coordinates
-    const boosterVector = new THREE.Vector3(boosterX, boosterY, 0);
-    boosterVector.project(camera);
+    // Project booster 3D position to screen coordinates (reuse vector)
+    boosterVectorRef.current.set(boosterX, boosterY, 0);
+    boosterVectorRef.current.project(camera);
 
     onScreenPositionUpdate({
-      x: (boosterVector.x * 0.5 + 0.5) * size.width,
-      y: (-boosterVector.y * 0.5 + 0.5) * size.height,
+      x: (boosterVectorRef.current.x * 0.5 + 0.5) * size.width,
+      y: (-boosterVectorRef.current.y * 0.5 + 0.5) * size.height,
       rotation: finalRotation,
-      visible: boosterVector.z < 1,
+      visible: boosterVectorRef.current.z < 1,
     });
   });
 
@@ -126,9 +136,11 @@ function RocketModel({
 function Scene({
   scrollProgress,
   onScreenPositionUpdate,
+  onReady,
 }: {
   scrollProgress: React.MutableRefObject<number>;
   onScreenPositionUpdate: (pos: ScreenPosition) => void;
+  onReady: () => void;
 }) {
   const { camera } = useThree();
 
@@ -142,8 +154,131 @@ function Scene({
       <ambientLight intensity={0.8} />
       <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
       <directionalLight position={[0, -3, 2]} intensity={0.5} color="#e8f0ff" />
-      <RocketModel scrollProgress={scrollProgress} onScreenPositionUpdate={onScreenPositionUpdate} />
+      <RocketModel scrollProgress={scrollProgress} onScreenPositionUpdate={onScreenPositionUpdate} onReady={onReady} />
     </>
+  );
+}
+
+function RocketShadow({
+  screenPos,
+  scrollProgress,
+}: {
+  screenPos: ScreenPosition;
+  scrollProgress: number;
+}) {
+  // Shadow only visible when rocket is over the moon (progress > 0.3)
+  const shadowOpacity = Math.max(0, (scrollProgress - 0.3) * 2);
+  if (shadowOpacity <= 0 || !screenPos.visible) return null;
+
+  // Match rocket rotation exactly
+  const rotation = -screenPos.rotation * 180 / Math.PI;
+
+  // Large offset for depth illusion - light from top-right, shadow falls bottom-left
+  const baseOffset = 120 + scrollProgress * 80;
+  const offsetX = baseOffset * 0.6;
+  const offsetY = baseOffset * 0.8;
+
+  // Scale shadow based on "altitude" over moon
+  const shadowScale = 1.0 + scrollProgress * 0.3;
+
+  // Blur for soft shadow edge
+  const shadowBlur = 8 + scrollProgress * 6;
+
+  return (
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        left: screenPos.x + offsetX,
+        top: screenPos.y + offsetY,
+        transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${shadowScale})`,
+        opacity: shadowOpacity,
+        filter: `blur(${shadowBlur}px)`,
+      }}
+    >
+      {/* Main rocket body */}
+      <div
+        className="absolute"
+        style={{
+          width: 10,
+          height: 200,
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          background: "rgba(0, 0, 0, 1)",
+          borderRadius: "40% 40% 20% 20% / 4% 4% 2% 2%",
+        }}
+      />
+
+      {/* Nose cone */}
+      <div
+        className="absolute"
+        style={{
+          width: 9,
+          height: 50,
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, calc(-50% - 120px))",
+          background: "rgba(0, 0, 0, 0.95)",
+          borderRadius: "50% 50% 35% 35% / 85% 85% 15% 15%",
+        }}
+      />
+
+      {/* Left booster */}
+      <div
+        className="absolute"
+        style={{
+          width: 6,
+          height: 150,
+          left: "50%",
+          top: "50%",
+          transform: "translate(calc(-50% - 10px), calc(-50% + 18px))",
+          background: "rgba(0, 0, 0, 0.9)",
+          borderRadius: "40% 40% 20% 20% / 3% 3% 2% 2%",
+        }}
+      />
+
+      {/* Right booster */}
+      <div
+        className="absolute"
+        style={{
+          width: 6,
+          height: 150,
+          left: "50%",
+          top: "50%",
+          transform: "translate(calc(-50% + 10px), calc(-50% + 18px))",
+          background: "rgba(0, 0, 0, 0.9)",
+          borderRadius: "40% 40% 20% 20% / 3% 3% 2% 2%",
+        }}
+      />
+
+      {/* Left booster nose */}
+      <div
+        className="absolute"
+        style={{
+          width: 5,
+          height: 28,
+          left: "50%",
+          top: "50%",
+          transform: "translate(calc(-50% - 10px), calc(-50% - 62px))",
+          background: "rgba(0, 0, 0, 0.85)",
+          borderRadius: "50% 50% 35% 35% / 75% 75% 25% 25%",
+        }}
+      />
+
+      {/* Right booster nose */}
+      <div
+        className="absolute"
+        style={{
+          width: 5,
+          height: 28,
+          left: "50%",
+          top: "50%",
+          transform: "translate(calc(-50% + 10px), calc(-50% - 62px))",
+          background: "rgba(0, 0, 0, 0.85)",
+          borderRadius: "50% 50% 35% 35% / 75% 75% 25% 25%",
+        }}
+      />
+    </div>
   );
 }
 
@@ -291,53 +426,70 @@ export default function Rocket3D() {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [screenPos, setScreenPos] = useState<ScreenPosition>({ x: 0, y: 0, rotation: 0, visible: false });
   const [trails, setTrails] = useState<TrailPoint[]>([]);
-  const lastTrailTime = useRef(0);
+  const [isReady, setIsReady] = useState(false);
   const trailIdRef = useRef(0);
 
-  // Trail creation - only when moving
+  // Use refs to access current values in the interval without adding dependencies
+  const screenPosRef = useRef(screenPos);
+  const scrollProgressValRef = useRef(scrollProgress);
+  screenPosRef.current = screenPos;
+  scrollProgressValRef.current = scrollProgress;
+
+  const handleReady = useCallback(() => {
+    setIsReady(true);
+  }, []);
+
+  // Single interval for trail creation and fading
   useEffect(() => {
-    if (scrollProgress > 0.05 && screenPos.visible) {
-      const now = Date.now();
-      if (now - lastTrailTime.current > 40) {
-        lastTrailTime.current = now;
+    let lastTrailTime = 0;
 
-        const trailOffsetDist = CONFIG.flameSize * (-1 + scrollProgress);
-        const exhaustAngle = -screenPos.rotation;
-        const trailX = screenPos.x + Math.sin(exhaustAngle) * trailOffsetDist;
-        const trailY = screenPos.y - Math.cos(exhaustAngle) * trailOffsetDist;
-
-        setTrails((prev) => [
-          ...prev.slice(-25),
-          {
-            id: trailIdRef.current++,
-            x: trailX,
-            y: trailY,
-            opacity: 0.5 + scrollProgress * 0.3,
-            size: CONFIG.flameSize * (0.3 + scrollProgress * 0.4),
-          },
-        ]);
-      }
-    }
-  }, [scrollProgress, screenPos]);
-
-  // Trail fade - separate effect with stable interval
-  const isIdle = scrollProgress < 0.05;
-  useEffect(() => {
-    const fadeRate = isIdle ? 0.08 : 0.015;
     const interval = setInterval(() => {
-      setTrails((prev) =>
-        prev
+      const progress = scrollProgressValRef.current;
+      const pos = screenPosRef.current;
+      const isIdle = progress < 0.05;
+
+      setTrails((prev) => {
+        // Create new trail if moving
+        let newTrails = prev;
+        if (progress > 0.05 && pos.visible) {
+          const now = Date.now();
+          if (now - lastTrailTime > 40) {
+            lastTrailTime = now;
+
+            const trailOffsetDist = CONFIG.flameSize * (-1 + progress);
+            const exhaustAngle = -pos.rotation;
+            const trailX = pos.x + Math.sin(exhaustAngle) * trailOffsetDist;
+            const trailY = pos.y - Math.cos(exhaustAngle) * trailOffsetDist;
+
+            newTrails = [
+              ...prev.slice(-25),
+              {
+                id: trailIdRef.current++,
+                x: trailX,
+                y: trailY,
+                opacity: 0.5 + progress * 0.3,
+                size: CONFIG.flameSize * (0.3 + progress * 0.4),
+              },
+            ];
+          }
+        }
+
+        // Fade all trails
+        const fadeRate = isIdle ? 0.08 : 0.015;
+        const sizeMultiplier = isIdle ? 0.92 : 0.97;
+
+        return newTrails
           .map((trail) => ({
             ...trail,
             opacity: trail.opacity - fadeRate,
-            size: trail.size * (isIdle ? 0.92 : 0.97),
+            size: trail.size * sizeMultiplier,
           }))
-          .filter((trail) => trail.opacity > 0)
-      );
+          .filter((trail) => trail.opacity > 0);
+      });
     }, 25);
 
     return () => clearInterval(interval);
-  }, [isIdle]);
+  }, []); // Empty deps - uses refs for current values
 
   useEffect(() => {
     const trigger = ScrollTrigger.create({
@@ -360,13 +512,30 @@ export default function Rocket3D() {
 
   return (
     <>
-      <div className="fixed inset-0 z-[25] pointer-events-none" aria-hidden="true">
+      {/* Shadow layer - renders on moon surface */}
+      <div
+        className="fixed inset-0 z-[23] pointer-events-none overflow-hidden transition-opacity duration-500"
+        style={{ opacity: isReady ? 1 : 0 }}
+        aria-hidden="true"
+      >
+        <RocketShadow screenPos={screenPos} scrollProgress={scrollProgress} />
+      </div>
+
+      <div
+        className="fixed inset-0 z-[25] pointer-events-none transition-opacity duration-500"
+        style={{ opacity: isReady ? 1 : 0 }}
+        aria-hidden="true"
+      >
         <Canvas gl={{ antialias: true, alpha: true }} dpr={[1, 2]} camera={{ fov: 45, near: 0.1, far: 100 }}>
-          <Scene scrollProgress={scrollProgressRef} onScreenPositionUpdate={handleScreenPositionUpdate} />
+          <Scene scrollProgress={scrollProgressRef} onScreenPositionUpdate={handleScreenPositionUpdate} onReady={handleReady} />
         </Canvas>
       </div>
 
-      <div className="fixed inset-0 z-[26] pointer-events-none overflow-hidden" aria-hidden="true">
+      <div
+        className="fixed inset-0 z-[26] pointer-events-none overflow-hidden transition-opacity duration-500"
+        style={{ opacity: isReady ? 1 : 0 }}
+        aria-hidden="true"
+      >
         <BoosterFlame screenPos={screenPos} scrollProgress={scrollProgress} trails={trails} />
       </div>
     </>
