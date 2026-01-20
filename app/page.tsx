@@ -1,9 +1,7 @@
-import Image from "next/image";
-import EyeTrackerBall from "./components/EyeTrackerBall";
-import CloudAtmosphere from "./components/CloudAtmosphere";
 import AnimatedName from "./components/AnimatedName";
-import MoonReveal from "./components/MoonReveal";
 import Rocket3D from "./components/Rocket3D";
+import MoonReveal from "./components/MoonReveal";
+import EyeTrackerBall from "./components/EyeTrackerBall";
 import { siteConfig } from "@/lib/site";
 
 export default function Home() {

@@ -1,89 +1,55 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import gsap from "gsap";
 
-interface LoadingContextType {
+// Module-level state (replaces React context)
+interface LoadingState {
   isLoaded: boolean;
   progress: number;
-  signalReady: () => void;
+  assetsReady: boolean;
+  minTimeElapsed: boolean;
 }
 
-const LoadingContext = createContext<LoadingContextType>({
+let globalState: LoadingState = {
   isLoaded: false,
   progress: 0,
-  signalReady: () => {},
-});
+  assetsReady: false,
+  minTimeElapsed: false,
+};
 
-export const useLoading = () => useContext(LoadingContext);
+const listeners = new Set<() => void>();
 
-interface LoadingProviderProps {
-  children: ReactNode;
+function notifyListeners() {
+  listeners.forEach((listener) => listener());
 }
 
-export function LoadingProvider({ children }: LoadingProviderProps) {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [assetsReady, setAssetsReady] = useState(false);
-  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
-  const [progress, setProgress] = useState(0);
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
 
-  // Direct signal that everything is ready
-  const signalReady = useCallback(() => {
-    setAssetsReady(true);
-    setProgress(100);
-  }, []);
+function getSnapshot() {
+  return globalState;
+}
 
-  // Minimum loading time for smoother UX
-  useEffect(() => {
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 90) return prev;
-        return prev + Math.random() * 12;
-      });
-    }, 150);
+function updateState(updates: Partial<LoadingState>) {
+  globalState = { ...globalState, ...updates };
+  notifyListeners();
+}
 
-    const timer = setTimeout(() => {
-      setMinTimeElapsed(true);
-      clearInterval(progressInterval);
-      setProgress(100);
-    }, 1400);
+// Exported function to signal assets are ready
+export function signalReady() {
+  updateState({ assetsReady: true, progress: 100 });
+}
 
-    return () => {
-      clearTimeout(timer);
-      clearInterval(progressInterval);
-    };
-  }, []);
-
-  // Complete loading when all conditions met
-  useEffect(() => {
-    if ((assetsReady || minTimeElapsed) && minTimeElapsed && !isLoaded) {
-      const timer = setTimeout(() => {
-        setIsLoaded(true);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [assetsReady, minTimeElapsed, isLoaded]);
-
-  // Lock scroll during loading
-  useEffect(() => {
-    if (!isLoaded) {
-      document.body.style.overflow = "hidden";
-      document.documentElement.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-      document.documentElement.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-      document.documentElement.style.overflow = "";
-    };
-  }, [isLoaded]);
-
-  return (
-    <LoadingContext.Provider value={{ isLoaded, progress, signalReady }}>
-      {children}
-    </LoadingContext.Provider>
-  );
+// Hook to access loading state (replaces useContext)
+export function useLoading() {
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return {
+    isLoaded: state.isLoaded,
+    progress: state.progress,
+  };
 }
 
 const LOADING_MESSAGES = [
@@ -103,7 +69,7 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 export function LoadingScreen() {
-  const { isLoaded, progress } = useLoading();
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [displayProgress, setDisplayProgress] = useState(0);
@@ -112,9 +78,53 @@ export function LoadingScreen() {
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [messageState, setMessageState] = useState<"entering" | "visible" | "exiting">("entering");
 
+  // Initialize loading timers (runs once on mount)
+  useEffect(() => {
+    const progressInterval = setInterval(() => {
+      if (globalState.progress < 90) {
+        updateState({ progress: globalState.progress + Math.random() * 12 });
+      }
+    }, 150);
+
+    const timer = setTimeout(() => {
+      updateState({ minTimeElapsed: true, progress: 100 });
+      clearInterval(progressInterval);
+    }, 1400);
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(progressInterval);
+    };
+  }, []);
+
+  // Complete loading when conditions are met
+  useEffect(() => {
+    if ((state.assetsReady || state.minTimeElapsed) && state.minTimeElapsed && !state.isLoaded) {
+      const timer = setTimeout(() => {
+        updateState({ isLoaded: true });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [state.assetsReady, state.minTimeElapsed, state.isLoaded]);
+
+  // Lock scroll during loading
+  useEffect(() => {
+    if (!state.isLoaded) {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
+  }, [state.isLoaded]);
+
   // Smoothly animate progress number
   useEffect(() => {
-    const target = Math.min(progress, 100);
+    const target = Math.min(state.progress, 100);
     const animate = () => {
       setDisplayProgress((prev) => {
         const diff = target - prev;
@@ -124,11 +134,11 @@ export function LoadingScreen() {
     };
     const interval = setInterval(animate, 16);
     return () => clearInterval(interval);
-  }, [progress]);
+  }, [state.progress]);
 
   // Message cycling
   useEffect(() => {
-    if (isLoaded) return;
+    if (state.isLoaded) return;
 
     // Initial enter animation
     const enterTimeout = setTimeout(() => {
@@ -158,11 +168,11 @@ export function LoadingScreen() {
       clearTimeout(enterTimeout);
       clearInterval(interval);
     };
-  }, [isLoaded, messages.length]);
+  }, [state.isLoaded, messages.length]);
 
   // Reveal animation when loaded
   useEffect(() => {
-    if (isLoaded && containerRef.current && contentRef.current && !isHidden) {
+    if (state.isLoaded && containerRef.current && contentRef.current && !isHidden) {
       const tl = gsap.timeline({
         onComplete: () => setIsHidden(true),
       });
@@ -185,7 +195,7 @@ export function LoadingScreen() {
         "-=0.1"
       );
     }
-  }, [isLoaded, isHidden]);
+  }, [state.isLoaded, isHidden]);
 
   if (isHidden) return null;
 

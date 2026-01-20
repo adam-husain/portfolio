@@ -6,7 +6,10 @@ import { useGLTF, Clone, Center } from "@react-three/drei";
 import * as THREE from "three";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { useLoading } from "./LoadingScreen";
+import { signalReady } from "./LoadingScreen";
+
+// Set Draco decoder path for compressed models
+useGLTF.setDecoderPath("/draco/");
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -51,7 +54,7 @@ function RocketModel({
   onScreenPositionUpdate: (pos: ScreenPosition) => void;
   onReady: () => void;
 }) {
-  const { scene } = useGLTF("/assets/rocket.glb");
+  const { scene } = useGLTF("/assets/rocket-draco.glb");
   const rocketRef = useRef<THREE.Group>(null);
   const idleTimeRef = useRef(0);
   const boosterVectorRef = useRef(new THREE.Vector3());
@@ -430,8 +433,7 @@ export default function Rocket3D() {
   const [isReady, setIsReady] = useState(false);
   const trailIdRef = useRef(0);
   const lastStateUpdateRef = useRef(0);
-  const { signalReady } = useLoading();
-
+  
   // Use refs to access current values in the interval without adding dependencies
   const screenPosRef = useRef(screenPos);
   const scrollProgressValRef = useRef(scrollProgress);
@@ -551,4 +553,4 @@ export default function Rocket3D() {
   );
 }
 
-useGLTF.preload("/assets/rocket.glb");
+useGLTF.preload("/assets/rocket-draco.glb");

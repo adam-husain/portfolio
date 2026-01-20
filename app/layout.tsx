@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Raleway } from "next/font/google";
+import LoadingOverlay from "./components/LoadingOverlay";
 import "./globals.css";
-import ClientWrapper from "./components/ClientWrapper";
 
 const raleway = Raleway({
   variable: "--font-raleway",
@@ -52,10 +52,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="prefetch" href="/assets/rocket-draco.glb" as="fetch" crossOrigin="anonymous" />
+        <link rel="prefetch" href="/draco/draco_decoder.wasm" as="fetch" crossOrigin="anonymous" />
+      </head>
       <body
         className={`${raleway.variable} ${raleway.className} antialiased`}
       >
-        <ClientWrapper>{children}</ClientWrapper>
+        <LoadingOverlay />
+        {children}
       </body>
     </html>
   );
