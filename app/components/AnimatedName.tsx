@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import posthog from "posthog-js";
+import { useLoading } from "./LoadingScreen";
 
 // Animation timing constants
-const TOTAL_DURATION_MS = 5000;
+const TOTAL_DURATION_MS = 3000;
 const LETTER_COUNT = 11;
 const OVERLAP_FACTOR = 0.6;
 
@@ -60,10 +61,16 @@ const PATHS = [
 export default function AnimatedName() {
   const svgRef = useRef<SVGSVGElement>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const { isLoaded } = useLoading();
 
   useEffect(() => {
-    // Trigger animation on mount
-    setIsAnimating(true);
+    // Wait for loading to complete before starting animation
+    if (!isLoaded) return;
+
+    // Small delay after loading screen reveals for better effect
+    const startDelay = setTimeout(() => {
+      setIsAnimating(true);
+    }, 200);
 
     // Track when animation completes
     const animationCompleteTimeout = setTimeout(() => {
@@ -71,10 +78,13 @@ export default function AnimatedName() {
         animation_duration_ms: TOTAL_DURATION_MS,
         letter_count: LETTER_COUNT,
       });
-    }, TOTAL_DURATION_MS);
+    }, TOTAL_DURATION_MS + 200);
 
-    return () => clearTimeout(animationCompleteTimeout);
-  }, []);
+    return () => {
+      clearTimeout(startDelay);
+      clearTimeout(animationCompleteTimeout);
+    };
+  }, [isLoaded]);
 
   return (
     <svg

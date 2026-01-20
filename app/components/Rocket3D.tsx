@@ -6,6 +6,7 @@ import { useGLTF, Clone, Center } from "@react-three/drei";
 import * as THREE from "three";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useLoading } from "./LoadingScreen";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -428,6 +429,8 @@ export default function Rocket3D() {
   const [trails, setTrails] = useState<TrailPoint[]>([]);
   const [isReady, setIsReady] = useState(false);
   const trailIdRef = useRef(0);
+  const lastStateUpdateRef = useRef(0);
+  const { signalReady } = useLoading();
 
   // Use refs to access current values in the interval without adding dependencies
   const screenPosRef = useRef(screenPos);
@@ -437,7 +440,8 @@ export default function Rocket3D() {
 
   const handleReady = useCallback(() => {
     setIsReady(true);
-  }, []);
+    signalReady();
+  }, [signalReady]);
 
   // Single interval for trail creation and fading
   useEffect(() => {
@@ -496,10 +500,15 @@ export default function Rocket3D() {
       trigger: "#moon-section",
       start: "top bottom",
       end: "top top",
-      scrub: true,
+      scrub: 0.5,
       onUpdate: (self) => {
         scrollProgressRef.current = self.progress;
-        setScrollProgress(self.progress);
+        // Throttle React state updates to ~60fps to prevent lag from touchpad scroll events
+        const now = performance.now();
+        if (now - lastStateUpdateRef.current >= 16) {
+          lastStateUpdateRef.current = now;
+          setScrollProgress(self.progress);
+        }
       },
     });
 

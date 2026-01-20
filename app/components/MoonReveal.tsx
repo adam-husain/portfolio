@@ -15,6 +15,7 @@ export default function MoonReveal() {
   const maskRef = useRef<HTMLDivElement>(null);
   const moonRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!maskRef.current || !moonRef.current || !glowRef.current) return;
@@ -28,23 +29,24 @@ export default function MoonReveal() {
           trigger: "#moon-section",
           start: "top bottom",
           end: "top top",
-          scrub: true,
+          scrub: 0.5,
         },
       });
 
-      // Animate moon transform as you scroll
+      // Animate moon transform and darken as you scroll
       gsap.fromTo(
         moonRef.current,
-        { xPercent: -50, yPercent: MOON_START_Y },
+        { xPercent: -50, yPercent: MOON_START_Y, filter: "brightness(1)" },
         {
           xPercent: -50,
           yPercent: MOON_END_Y,
+          filter: "brightness(0.5)",
           ease: "none",
           scrollTrigger: {
             trigger: "#moon-section",
             start: "top bottom",
             end: "top top",
-            scrub: true,
+            scrub: 0.5,
           },
         }
       );
@@ -61,10 +63,29 @@ export default function MoonReveal() {
             trigger: "#moon-section",
             start: "top bottom",
             end: "top top",
-            scrub: true,
+            scrub: 0.5,
           },
         }
       );
+
+      // Animate embossed text - fade in at 50% scroll
+      if (textRef.current) {
+        gsap.fromTo(
+          textRef.current,
+          { opacity: 0, y: 30 },
+          {
+            opacity: 1,
+            y: 0,
+            ease: "power2.out",
+            scrollTrigger: {
+              trigger: "#moon-section",
+              start: "top 50%",
+              end: "top 20%",
+              scrub: 0.5,
+            },
+          }
+        );
+      }
     });
 
     return () => ctx.revert();
@@ -117,6 +138,33 @@ export default function MoonReveal() {
             priority
             unoptimized
           />
+        </div>
+
+        {/* Embossed text overlay */}
+        <div
+          ref={textRef}
+          className="fixed top-1/2 left-8 md:left-16 lg:left-24 -translate-y-1/2 max-w-lg text-white"
+          style={{ opacity: 0 }}
+        >
+          <h2
+            className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-4"
+            style={{
+              textShadow:
+                "2px 2px 4px rgba(0,0,0,0.8), -1px -1px 0 rgba(255,255,255,0.1), 0 0 40px rgba(255,255,255,0.2)",
+            }}
+          >
+            A good design is
+            <br />
+            not rocket science
+          </h2>
+          <p
+            className="text-base md:text-lg lg:text-xl text-white/80 leading-relaxed"
+            style={{
+              textShadow: "1px 1px 3px rgba(0,0,0,0.9)",
+            }}
+          >
+            But a rocket sure helps with making it look cool.
+          </p>
         </div>
       </div>
     </>

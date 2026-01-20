@@ -9,7 +9,6 @@ This project uses Bun runtime and package manager.
 
 ## Project Structure
 - `layout.md` - Final page design specifications
-- `ideas.md` - Concept and visual zone breakdown
 - `resume.pdf` - Source for career/project data
 
 ## Design Principles

@@ -13,6 +13,8 @@
   --animate-twinkle-delayed: twinkle 5s ease-in-out infinite 1s;
   --animate-twinkle-slow: twinkle 6s ease-in-out infinite 2s;
   --animate-bounce-slow: bounce-slow 2s ease-in-out infinite;
+  --animate-flame: flame 0.3s ease-in-out infinite alternate;
+  --animate-flame-delayed: flame 0.4s ease-in-out infinite alternate 0.15s;
 }
 
 @keyframes twinkle {
@@ -30,6 +32,17 @@
   }
   50% {
     transform: translateY(8px);
+  }
+}
+
+@keyframes flame {
+  0% {
+    transform: scaleY(1) scaleX(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scaleY(1.3) scaleX(0.8);
+    opacity: 1;
   }
 }
 
