@@ -291,7 +291,7 @@ function calculateEyeOffsets(
 // MAIN COMPONENT
 // ============================================
 
-export default function EyeTrackerBall() {
+export default function MyFace() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const loadedCountRef = useRef(0);
@@ -566,7 +566,7 @@ export default function EyeTrackerBall() {
       <div className={`relative w-full h-full transition-opacity duration-300 ${imagesLoaded ? "opacity-100" : "opacity-0"}`}>
 
         {/* LAYER 1: BASE - Face with blank eye areas */}
-        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform" }}>
+        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform", clipPath: "inset(0 0 30% 0)" }}>
           <Image
             src={FACE_LAYERS.BASE}
             alt="Adam"
@@ -584,7 +584,7 @@ export default function EyeTrackerBall() {
         <Eyeball position={RIGHT_EYE} offset={rightEyeOffset} size={EYEBALL_SIZE} />
 
         {/* LAYER 3: OVERLAY - Face with eye socket cutouts (masks eyeballs) */}
-        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform" }}>
+        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform", clipPath: "inset(0 0 30% 0)" }}>
           <Image
             src={FACE_LAYERS.OVERLAY}
             alt=""

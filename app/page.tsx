@@ -1,7 +1,7 @@
 import AnimatedName from "./components/AnimatedName";
 import Rocket3D from "./components/Rocket3D";
 import MoonReveal from "./components/MoonReveal";
-import EyeTrackerBall from "./components/EyeTrackerBall";
+import MyFace from "./components/MyFace";
 import { siteConfig } from "@/lib/site";
 
 export default function Home() {
@@ -61,7 +61,7 @@ export default function Home() {
           aspectRatio: "550 / 800",
         }}
       >
-        <EyeTrackerBall />
+        <MyFace />
       </div>
 
       {/* Moon section */}
