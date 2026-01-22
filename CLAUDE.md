@@ -1,6 +1,6 @@
 # Adam's Portfolio Website
 
-You have access to gltf-transform and gltfpack
+You have access to gltf-transform and gltfpack. gltfpack exe is located at `public\assets\gltfpack.exe`.
 
 ## Tech Stack
 - **NextJS** - Static site generator

@@ -54,7 +54,6 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="prefetch" href="/assets/rocket.glb" as="fetch" crossOrigin="anonymous" />
-        <link rel="prefetch" href="/draco/draco_decoder.wasm" as="fetch" crossOrigin="anonymous" />
       </head>
       <body
         className={`${raleway.variable} ${raleway.className} antialiased`}

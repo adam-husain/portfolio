@@ -8,9 +8,6 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { signalReady } from "./LoadingScreen";
 
-// Set Draco decoder path for compressed models
-useGLTF.setDecoderPath("/draco/");
-
 gsap.registerPlugin(ScrollTrigger);
 
 // Animation constants
@@ -18,8 +15,8 @@ const CONFIG = {
   scale: 0.05,
   startX: 5.6,
   startY: -1,
-  endX: -5.7,
-  endY: -3.4,
+  endX: -6.9,
+  endY: -7.4,
   arcHeight: 2.1,
   bounceAmplitude: 0.22,
   bounceSpeed: 0.3,
@@ -433,7 +430,7 @@ export default function Rocket3D() {
   const [isReady, setIsReady] = useState(false);
   const trailIdRef = useRef(0);
   const lastStateUpdateRef = useRef(0);
-  
+
   // Use refs to access current values in the interval without adding dependencies
   const screenPosRef = useRef(screenPos);
   const scrollProgressValRef = useRef(scrollProgress);
@@ -443,7 +440,7 @@ export default function Rocket3D() {
   const handleReady = useCallback(() => {
     setIsReady(true);
     signalReady();
-  }, [signalReady]);
+  }, []);
 
   // Single interval for trail creation and fading with idle detection
   useEffect(() => {

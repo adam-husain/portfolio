@@ -7,82 +7,283 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// Moon transform positions
-const MOON_START_Y = 55; // Start position (% translateY)
-const MOON_END_Y = 50;   // End position (% translateY)
+// Moon configuration
+const CONFIG = {
+  section2: {
+    startYPercent: 55,
+    endYPercent: 50,
+    startBrightness: 1,
+    endBrightness: 0.5,
+  },
+  section3: {
+    endScale: 0.19,
+    endLeftVw: 5,
+    endTopVh: 10,
+    endRotation: 60,
+    triggerEnd: "top 20%",
+  },
+};
+
+// Smoothing factor for moon movement (lower = smoother but laggier)
+const SMOOTH_FACTOR = 0.12;
 
 export default function MoonReveal() {
   const maskRef = useRef<HTMLDivElement>(null);
   const moonRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
+  const moonGlowRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
+
+  // Refs for smooth animation
+  const section3ProgressRef = useRef(0);
+  const targetMoonState = useRef({
+    left: 0,
+    top: 0,
+    size: 0,
+    rotation: 0,
+  });
+  const currentMoonState = useRef({
+    left: 0,
+    top: 0,
+    size: 0,
+    rotation: 0,
+  });
+  const animationFrameRef = useRef<number | null>(null);
+  const isSection3Active = useRef(false);
 
   useEffect(() => {
     const mask = maskRef.current;
     const moon = moonRef.current;
     const glow = glowRef.current;
+    const moonGlow = moonGlowRef.current;
     const text = textRef.current;
 
-    if (!mask || !moon || !glow) return;
+    if (!mask || !moon || !glow || !moonGlow) return;
 
-    // Helper functions for interpolation
+    // Helper functions
     const lerp = (start: number, end: number, p: number) => start + (end - start) * p;
     const mapRange = (p: number, min: number, max: number) =>
       Math.max(0, Math.min(1, (p - min) / (max - min)));
 
-    // Single ScrollTrigger - scrub: true for instant response (no delay)
-    const trigger = ScrollTrigger.create({
+    // Calculate base moon size
+    const getBaseSize = () => Math.max(window.innerWidth * 1.5, window.innerHeight * 1.5);
+
+    // Get section 2 end position (where section 3 should start)
+    const getSection2EndPosition = () => {
+      const baseSize = getBaseSize();
+      const centerX = window.innerWidth / 2;
+      const bottomPos = window.innerHeight;
+      const centerY = bottomPos + baseSize * (CONFIG.section2.endYPercent / 100 - 0.5);
+      return { centerX, centerY, size: baseSize };
+    };
+
+    // Initialize current state
+    const initState = getSection2EndPosition();
+    currentMoonState.current = {
+      left: initState.centerX,
+      top: initState.centerY,
+      size: initState.size,
+      rotation: 0,
+    };
+    targetMoonState.current = { ...currentMoonState.current };
+
+    // Smooth animation loop for section 3
+    const animateSmooth = () => {
+      if (!isSection3Active.current) {
+        animationFrameRef.current = requestAnimationFrame(animateSmooth);
+        return;
+      }
+
+      const current = currentMoonState.current;
+      const target = targetMoonState.current;
+
+      // Lerp towards target
+      current.left += (target.left - current.left) * SMOOTH_FACTOR;
+      current.top += (target.top - current.top) * SMOOTH_FACTOR;
+      current.size += (target.size - current.size) * SMOOTH_FACTOR;
+      current.rotation += (target.rotation - current.rotation) * SMOOTH_FACTOR;
+
+      // Apply to DOM
+      moon.style.width = `${current.size}px`;
+      moon.style.height = `${current.size}px`;
+      moon.style.left = `${current.left}px`;
+      moon.style.top = `${current.top}px`;
+      moon.style.bottom = "auto";
+      moon.style.transform = `translate(-50%, -50%) rotate(${current.rotation}deg)`;
+
+      // Section 3 moon glow - follows moon position with larger size
+      const glowSize = current.size * 1.8;
+      moonGlow.style.width = `${glowSize}px`;
+      moonGlow.style.height = `${glowSize}px`;
+      moonGlow.style.left = `${current.left}px`;
+      moonGlow.style.top = `${current.top}px`;
+
+      animationFrameRef.current = requestAnimationFrame(animateSmooth);
+    };
+
+    // Start animation loop
+    animationFrameRef.current = requestAnimationFrame(animateSmooth);
+
+    // Section 2 ScrollTrigger - moon reveal
+    const trigger1 = ScrollTrigger.create({
       trigger: "#moon-section",
       start: "top bottom",
       end: "top top",
-      scrub: true, // Instant 1:1 scroll response - maximum responsiveness
+      scrub: true,
       onUpdate: (self) => {
         const p = self.progress;
+        const s3p = section3ProgressRef.current;
 
-        // Mask: 0% → 120%
+        // Mask: 0% -> 120%
         mask.style.setProperty("--mask-progress", `${lerp(0, 120, p)}%`);
 
-        // Moon: yPercent and brightness
-        const yPercent = lerp(MOON_START_Y, MOON_END_Y, p);
-        const brightness = lerp(1, 0.5, p);
-        moon.style.transform = `translateX(-50%) translateY(${yPercent}%)`;
-        moon.style.filter = `brightness(${brightness})`;
+        // Only apply section 2 transforms if section 3 hasn't started
+        if (s3p <= 0) {
+          isSection3Active.current = false;
+          const yPercent = lerp(CONFIG.section2.startYPercent, CONFIG.section2.endYPercent, p);
+          const brightness = lerp(CONFIG.section2.startBrightness, CONFIG.section2.endBrightness, p);
 
-        // Glow: opacity with easeOut, and glow-y position
-        const easedP = 1 - Math.pow(1 - p, 2); // power2.out equivalent
+          moon.style.width = "max(150vw, 150vh)";
+          moon.style.height = "max(150vw, 150vh)";
+          moon.style.left = "50%";
+          moon.style.bottom = "0";
+          moon.style.top = "auto";
+          moon.style.transform = `translateX(-50%) translateY(${yPercent}%) rotate(0deg)`;
+          moon.style.filter = `brightness(${brightness})`;
+
+          // Update current state for smooth transition
+          const baseSize = getBaseSize();
+          currentMoonState.current = {
+            left: window.innerWidth / 2,
+            top: window.innerHeight + baseSize * (yPercent / 100 - 0.5),
+            size: baseSize,
+            rotation: 0,
+          };
+          targetMoonState.current = { ...currentMoonState.current };
+        }
+
+        // Glow effect - position based on scroll, opacity handled by CSS transition
+        const easedP = 1 - Math.pow(1 - p, 2);
         const glowY = lerp(100, 30, easedP);
-        glow.style.opacity = String(easedP);
         glow.style.setProperty("--glow-y", `${glowY}%`);
+        // Set base opacity (will be overridden by section 3 fade)
+        if (s3p <= 0) {
+          glow.style.opacity = String(easedP);
+        }
 
-        // Text: mapped to 50%-80% scroll range
+        // Text: fade out when section 3 progress reaches 0.7
         if (text) {
           const textP = mapRange(p, 0.5, 0.8);
-          const easedTextP = 1 - Math.pow(1 - textP, 2); // power2.out equivalent
+          const easedTextP = 1 - Math.pow(1 - textP, 2);
           const textY = lerp(30, 0, easedTextP);
-          text.style.opacity = String(easedTextP);
+          // Fade out when section 3 progress passes 0.7
+          const section3FadeOut = Math.max(0, 1 - mapRange(s3p, 0.5, 0.7));
+          const textOpacity = easedTextP * section3FadeOut;
+          text.style.opacity = String(Math.max(0, textOpacity));
           text.style.transform = `translateY(${textY}px)`;
         }
       },
     });
 
-    return () => trigger.kill();
+    // Section 3 ScrollTrigger - moon moves to top-left with rotation
+    const trigger2 = ScrollTrigger.create({
+      trigger: "#satellite-section",
+      start: "top bottom",
+      end: CONFIG.section3.triggerEnd,
+      scrub: true,
+      onUpdate: (self) => {
+        const p = self.progress;
+        section3ProgressRef.current = p;
+
+        if (p <= 0) {
+          isSection3Active.current = false;
+          // Show section 2 glow, hide moon glow
+          if (glow) glow.classList.remove("opacity-0");
+          if (moonGlow) moonGlow.classList.add("opacity-0");
+          return;
+        }
+
+        isSection3Active.current = true;
+
+        // Fade out section 2 glow, fade in moon glow (CSS transition handles smoothness)
+        if (glow) glow.classList.add("opacity-0");
+        if (moonGlow) moonGlow.classList.remove("opacity-0");
+
+        // Fade out text when section 3 progress reaches 0.7
+        if (text) {
+          const textFadeOut = Math.max(0, 1 - mapRange(p, 0.5, 0.7));
+          text.style.opacity = String(textFadeOut);
+        }
+
+        // Eased progress for smooth motion
+        const easedP = 1 - Math.pow(1 - p, 3);
+
+        // Get starting position from section 2 end state
+        const startPos = getSection2EndPosition();
+
+        // Calculate target scale and size
+        const scale = lerp(1, CONFIG.section3.endScale, easedP);
+        const targetSize = startPos.size * scale;
+
+        // Calculate end position (in pixels)
+        const endLeft = (CONFIG.section3.endLeftVw / 100) * window.innerWidth;
+        const endTop = (CONFIG.section3.endTopVh / 100) * window.innerHeight;
+
+        // Set target position for smooth interpolation
+        targetMoonState.current = {
+          left: lerp(startPos.centerX, endLeft, easedP),
+          top: lerp(startPos.centerY, endTop, easedP),
+          size: targetSize,
+          rotation: lerp(0, CONFIG.section3.endRotation, easedP),
+        };
+
+        moon.style.filter = `brightness(${CONFIG.section2.endBrightness})`;
+      },
+    });
+
+    // Handle resize
+    const handleResize = () => {
+      ScrollTrigger.refresh();
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      trigger1.kill();
+      trigger2.kill();
+      window.removeEventListener("resize", handleResize);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
   }, []);
 
   return (
     <>
-      {/* Glow effect ABOVE the masked moon - visible on intro section */}
+      {/* Section 2 Glow effect */}
       <div
         ref={glowRef}
-        className="fixed inset-x-0 bottom-[-10vh]! z-[19] pointer-events-none"
+        className="fixed inset-x-0 bottom-[-10vh]! z-[19] pointer-events-none transition-opacity duration-200"
         style={
           {
             "--glow-y": "100%",
             height: "110vh",
             opacity: 0,
             background:
-              "radial-gradient(ellipse 200% 80% at 50% var(--glow-y), rgba(255,255,255,0.3) 0%, rgba(220,240,255,0.2) 10%, rgba(180,210,255,0.12) 25%, rgba(140,180,255,0.06) 40%, rgba(100,150,255,0.02) 55%, transparent 75%)",
+              "radial-gradient(ellipse 200% 80% at 50% var(--glow-y), rgba(245,245,245,0.3) 0%, rgba(230,230,230,0.2) 10%, rgba(210,210,210,0.12) 25%, rgba(190,190,190,0.06) 40%, rgba(170,170,170,0.02) 55%, transparent 75%)",
           } as React.CSSProperties
         }
+        aria-hidden="true"
+      />
+
+      {/* Section 3 moon glow - positioned behind the moon */}
+      <div
+        ref={moonGlowRef}
+        className="fixed z-[19] pointer-events-none opacity-0 transition-opacity duration-300"
+        style={{
+          transform: "translate(-50%, -50%)",
+          background:
+            "radial-gradient(circle, rgba(245,245,245,0.25) 0%, rgba(220,220,220,0.15) 20%, rgba(200,200,200,0.08) 40%, rgba(180,180,180,0.03) 60%, transparent 70%)",
+        }}
         aria-hidden="true"
       />
 
@@ -97,7 +298,7 @@ export default function MoonReveal() {
           } as React.CSSProperties
         }
       >
-        {/* Moon image matching the section moon position */}
+        {/* Moon image */}
         <div
           ref={moonRef}
           className="fixed bottom-0 left-1/2"

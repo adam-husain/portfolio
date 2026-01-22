@@ -1,6 +1,7 @@
 import AnimatedName from "./components/AnimatedName";
 import Rocket3D from "./components/Rocket3D";
 import MoonReveal from "./components/MoonReveal";
+import Satellite3D from "./components/Satellite3D";
 import MyFace from "./components/MyFace";
 import { siteConfig } from "@/lib/site";
 
@@ -68,6 +69,15 @@ export default function Home() {
       <section
         id="moon-section"
         className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      ></section>
+
+      {/* 3D Satellite flying across section 3 */}
+      <Satellite3D />
+
+      {/* Satellite section */}
+      <section
+        id="satellite-section"
+        className="relative h-[150vh] flex items-start justify-center overflow-hidden"
       ></section>
 
       {/* Noscript fallback for SEO */}
