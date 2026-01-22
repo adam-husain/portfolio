@@ -54,7 +54,7 @@ function RocketModel({
   onScreenPositionUpdate: (pos: ScreenPosition) => void;
   onReady: () => void;
 }) {
-  const { scene } = useGLTF("/assets/rocket-draco.glb");
+  const { scene } = useGLTF("/assets/rocket.glb");
   const rocketRef = useRef<THREE.Group>(null);
   const idleTimeRef = useRef(0);
   const boosterVectorRef = useRef(new THREE.Vector3());
@@ -171,7 +171,7 @@ function RocketShadow({
   scrollProgress: number;
 }) {
   // Shadow only visible when rocket is over the moon (progress > 0.3)
-  const shadowOpacity = Math.max(0, (scrollProgress - 0.3) * 2);
+  const shadowOpacity = Math.max(0, (scrollProgress - 0.25) * 2);
   if (shadowOpacity <= 0 || !screenPos.visible) return null;
 
   // Match rocket rotation exactly
@@ -445,20 +445,35 @@ export default function Rocket3D() {
     signalReady();
   }, [signalReady]);
 
-  // Single interval for trail creation and fading
+  // Single interval for trail creation and fading with idle detection
   useEffect(() => {
     let lastTrailTime = 0;
+    let lastProgress = scrollProgressValRef.current;
+    let lastChangeTime = Date.now();
+    let isScrollIdle = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
 
-    const interval = setInterval(() => {
+    const runInterval = () => {
       const progress = scrollProgressValRef.current;
       const pos = screenPosRef.current;
-      const isIdle = progress < 0.05;
+      const now = Date.now();
+
+      // Detect if scroll progress has changed
+      if (Math.abs(progress - lastProgress) > 0.001) {
+        lastProgress = progress;
+        lastChangeTime = now;
+        isScrollIdle = false;
+      } else if (!isScrollIdle && now - lastChangeTime > 500) {
+        isScrollIdle = true;
+      }
 
       setTrails((prev) => {
-        // Create new trail if moving
+        // When idle and no trails left, skip processing entirely
+        if (isScrollIdle && prev.length === 0) return prev;
+
+        // Create new trail only if actively scrolling
         let newTrails = prev;
-        if (progress > 0.05 && pos.visible) {
-          const now = Date.now();
+        if (!isScrollIdle && progress > 0.05 && pos.visible) {
           if (now - lastTrailTime > 40) {
             lastTrailTime = now;
 
@@ -480,9 +495,9 @@ export default function Rocket3D() {
           }
         }
 
-        // Fade all trails
-        const fadeRate = isIdle ? 0.08 : 0.015;
-        const sizeMultiplier = isIdle ? 0.92 : 0.97;
+        // Fade trails - faster when idle to clear them quickly
+        const fadeRate = isScrollIdle ? 0.08 : 0.015;
+        const sizeMultiplier = isScrollIdle ? 0.92 : 0.97;
 
         return newTrails
           .map((trail) => ({
@@ -492,9 +507,13 @@ export default function Rocket3D() {
           }))
           .filter((trail) => trail.opacity > 0);
       });
-    }, 25);
+    };
 
-    return () => clearInterval(interval);
+    intervalId = setInterval(runInterval, 25);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, []); // Empty deps - uses refs for current values
 
   useEffect(() => {
@@ -553,4 +572,4 @@ export default function Rocket3D() {
   );
 }
 
-useGLTF.preload("/assets/rocket-draco.glb");
+useGLTF.preload("/assets/rocket.glb");

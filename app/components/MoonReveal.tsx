@@ -18,77 +18,54 @@ export default function MoonReveal() {
   const textRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!maskRef.current || !moonRef.current || !glowRef.current) return;
+    const mask = maskRef.current;
+    const moon = moonRef.current;
+    const glow = glowRef.current;
+    const text = textRef.current;
 
-    const ctx = gsap.context(() => {
-      // Animate the curved mask from 0% to 120% based on scroll
-      gsap.to(maskRef.current, {
-        "--mask-progress": "120%",
-        ease: "none",
-        scrollTrigger: {
-          trigger: "#moon-section",
-          start: "top bottom",
-          end: "top top",
-          scrub: 0.5,
-        },
-      });
+    if (!mask || !moon || !glow) return;
 
-      // Animate moon transform and darken as you scroll
-      gsap.fromTo(
-        moonRef.current,
-        { xPercent: -50, yPercent: MOON_START_Y, filter: "brightness(1)" },
-        {
-          xPercent: -50,
-          yPercent: MOON_END_Y,
-          filter: "brightness(0.5)",
-          ease: "none",
-          scrollTrigger: {
-            trigger: "#moon-section",
-            start: "top bottom",
-            end: "top top",
-            scrub: 0.5,
-          },
+    // Helper functions for interpolation
+    const lerp = (start: number, end: number, p: number) => start + (end - start) * p;
+    const mapRange = (p: number, min: number, max: number) =>
+      Math.max(0, Math.min(1, (p - min) / (max - min)));
+
+    // Single ScrollTrigger - scrub: true for instant response (no delay)
+    const trigger = ScrollTrigger.create({
+      trigger: "#moon-section",
+      start: "top bottom",
+      end: "top top",
+      scrub: true, // Instant 1:1 scroll response - maximum responsiveness
+      onUpdate: (self) => {
+        const p = self.progress;
+
+        // Mask: 0% → 120%
+        mask.style.setProperty("--mask-progress", `${lerp(0, 120, p)}%`);
+
+        // Moon: yPercent and brightness
+        const yPercent = lerp(MOON_START_Y, MOON_END_Y, p);
+        const brightness = lerp(1, 0.5, p);
+        moon.style.transform = `translateX(-50%) translateY(${yPercent}%)`;
+        moon.style.filter = `brightness(${brightness})`;
+
+        // Glow: opacity with easeOut, and glow-y position
+        const easedP = 1 - Math.pow(1 - p, 2); // power2.out equivalent
+        const glowY = lerp(100, 30, easedP);
+        glow.style.opacity = String(easedP);
+        glow.style.setProperty("--glow-y", `${glowY}%`);
+
+        // Text: mapped to 50%-80% scroll range
+        if (text) {
+          const textP = mapRange(p, 0.5, 0.8);
+          const easedTextP = 1 - Math.pow(1 - textP, 2); // power2.out equivalent
+          const textY = lerp(30, 0, easedTextP);
+          text.style.opacity = String(easedTextP);
+          text.style.transform = `translateY(${textY}px)`;
         }
-      );
-
-      // Animate glow - fade IN when scroll starts
-      gsap.fromTo(
-        glowRef.current,
-        { opacity: 0, "--glow-y": "100%" },
-        {
-          opacity: 1,
-          "--glow-y": "30%",
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: "#moon-section",
-            start: "top bottom",
-            end: "top top",
-            scrub: 0.5,
-          },
-        }
-      );
-
-      // Animate embossed text - fade in at 50% scroll
-      if (textRef.current) {
-        gsap.fromTo(
-          textRef.current,
-          { opacity: 0, y: 30 },
-          {
-            opacity: 1,
-            y: 0,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: "#moon-section",
-              start: "top 50%",
-              end: "top 20%",
-              scrub: 0.5,
-            },
-          }
-        );
-      }
+      },
     });
 
-    return () => ctx.revert();
+    return () => trigger.kill();
   }, []);
 
   return (

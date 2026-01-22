@@ -1,5 +1,7 @@
 # Adam's Portfolio Website
 
+You have access to gltf-transform and gltfpack
+
 ## Tech Stack
 - **NextJS** - Static site generator
 - **GSAP** - ScrollTrigger, spring animations

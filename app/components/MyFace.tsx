@@ -297,13 +297,26 @@ export default function MyFace() {
   const loadedCountRef = useRef(0);
   const hasTrackedInteraction = useRef(false);
 
-  // Layer state
-  const [leftEyeOffset, setLeftEyeOffset] = useState({ x: 0, y: 0 });
-  const [rightEyeOffset, setRightEyeOffset] = useState({ x: 0, y: 0 });
-  const [layerOffset, setLayerOffset] = useState({ x: 0, y: 0 });
-  const [perspective, setPerspective] = useState({ rotateX: 0, rotateY: 0 });
-  const [leftGlintPos, setLeftGlintPos] = useState(-GLINT_WIDTH - GLINT_SKEW);
-  const [rightGlintPos, setRightGlintPos] = useState(-GLINT_WIDTH - GLINT_SKEW);
+  // Combined animation state - single state object for batched updates
+  const initialGlintPos = -GLINT_WIDTH - GLINT_SKEW;
+  const [animationState, setAnimationState] = useState({
+    leftEye: { x: 0, y: 0 },
+    rightEye: { x: 0, y: 0 },
+    layer: { x: 0, y: 0 },
+    perspective: { rotateX: 0, rotateY: 0 },
+    leftGlint: initialGlintPos,
+    rightGlint: initialGlintPos,
+  });
+
+  // Track last rendered values in ref (not state) for comparison
+  const lastRendered = useRef({
+    leftEye: { x: 0, y: 0 },
+    rightEye: { x: 0, y: 0 },
+    layer: { x: 0, y: 0 },
+    perspective: { rotateX: 0, rotateY: 0 },
+    leftGlint: initialGlintPos,
+    rightGlint: initialGlintPos,
+  });
 
   // Animation targets
   const targets = useRef({
@@ -334,11 +347,12 @@ export default function MyFace() {
     }
   }, []);
 
-  // Animation loop
+  // Animation loop - empty deps, compares against ref not state
   useEffect(() => {
     const animate = () => {
       const c = current.current;
       const t = targets.current;
+      const last = lastRendered.current;
 
       // Lerp all values
       c.leftEye.x = lerp(c.leftEye.x, t.leftEye.x, SMOOTHING_FACTOR);
@@ -352,27 +366,34 @@ export default function MyFace() {
       c.leftGlint = lerp(c.leftGlint, t.leftGlint, PARALLAX_SMOOTHING);
       c.rightGlint = lerp(c.rightGlint, t.rightGlint, PARALLAX_SMOOTHING);
 
-      // Update state only when there's meaningful change
-      const eyeDiff = Math.abs(c.leftEye.x - leftEyeOffset.x) + Math.abs(c.leftEye.y - leftEyeOffset.y) +
-                      Math.abs(c.rightEye.x - rightEyeOffset.x) + Math.abs(c.rightEye.y - rightEyeOffset.y);
-      const layerDiff = Math.abs(c.layer.x - layerOffset.x) + Math.abs(c.layer.y - layerOffset.y);
-      const perspectiveDiff = Math.abs(c.perspective.rotateX - perspective.rotateX) +
-                              Math.abs(c.perspective.rotateY - perspective.rotateY);
-      const glintDiff = Math.abs(c.leftGlint - leftGlintPos) + Math.abs(c.rightGlint - rightGlintPos);
+      // Compare against REF (not state) to determine if update needed
+      const eyeDiff = Math.abs(c.leftEye.x - last.leftEye.x) + Math.abs(c.leftEye.y - last.leftEye.y) +
+                      Math.abs(c.rightEye.x - last.rightEye.x) + Math.abs(c.rightEye.y - last.rightEye.y);
+      const layerDiff = Math.abs(c.layer.x - last.layer.x) + Math.abs(c.layer.y - last.layer.y);
+      const perspectiveDiff = Math.abs(c.perspective.rotateX - last.perspective.rotateX) +
+                              Math.abs(c.perspective.rotateY - last.perspective.rotateY);
+      const glintDiff = Math.abs(c.leftGlint - last.leftGlint) + Math.abs(c.rightGlint - last.rightGlint);
 
-      if (eyeDiff > 0.01) {
-        setLeftEyeOffset({ ...c.leftEye });
-        setRightEyeOffset({ ...c.rightEye });
-      }
-      if (layerDiff > 0.01) {
-        setLayerOffset({ ...c.layer });
-      }
-      if (perspectiveDiff > 0.001) {
-        setPerspective({ ...c.perspective });
-      }
-      if (glintDiff > 0.1) {
-        setLeftGlintPos(c.leftGlint);
-        setRightGlintPos(c.rightGlint);
+      const needsUpdate = eyeDiff > 0.01 || layerDiff > 0.01 || perspectiveDiff > 0.001 || glintDiff > 0.1;
+
+      if (needsUpdate) {
+        // Update ref with new values
+        last.leftEye = { ...c.leftEye };
+        last.rightEye = { ...c.rightEye };
+        last.layer = { ...c.layer };
+        last.perspective = { ...c.perspective };
+        last.leftGlint = c.leftGlint;
+        last.rightGlint = c.rightGlint;
+
+        // Single batched state update
+        setAnimationState({
+          leftEye: { ...c.leftEye },
+          rightEye: { ...c.rightEye },
+          layer: { ...c.layer },
+          perspective: { ...c.perspective },
+          leftGlint: c.leftGlint,
+          rightGlint: c.rightGlint,
+        });
       }
 
       animationFrameRef.current = requestAnimationFrame(animate);
@@ -382,7 +403,7 @@ export default function MyFace() {
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [leftEyeOffset, rightEyeOffset, layerOffset, perspective, leftGlintPos, rightGlintPos]);
+  }, []); // Empty deps - uses refs for all comparisons
 
   // Pointer movement handler
   const handlePointerMove = useCallback((clientX: number, clientY: number) => {
@@ -453,15 +474,20 @@ export default function MyFace() {
     const zeroPerspective = { rotateX: 0, rotateY: 0 };
     const glintOff = -GLINT_WIDTH - GLINT_SKEW;
 
-    targets.current = { leftEye: zero, rightEye: zero, layer: zero, perspective: zeroPerspective, leftGlint: glintOff, rightGlint: glintOff };
-    current.current = { leftEye: { ...zero }, rightEye: { ...zero }, layer: { ...zero }, perspective: { ...zeroPerspective }, leftGlint: glintOff, rightGlint: glintOff };
+    const resetState = {
+      leftEye: zero,
+      rightEye: zero,
+      layer: zero,
+      perspective: zeroPerspective,
+      leftGlint: glintOff,
+      rightGlint: glintOff,
+    };
 
-    setLeftEyeOffset(zero);
-    setRightEyeOffset(zero);
-    setLayerOffset(zero);
-    setPerspective(zeroPerspective);
-    setLeftGlintPos(glintOff);
-    setRightGlintPos(glintOff);
+    targets.current = { ...resetState };
+    current.current = { leftEye: { ...zero }, rightEye: { ...zero }, layer: { ...zero }, perspective: { ...zeroPerspective }, leftGlint: glintOff, rightGlint: glintOff };
+    lastRendered.current = { leftEye: { ...zero }, rightEye: { ...zero }, layer: { ...zero }, perspective: { ...zeroPerspective }, leftGlint: glintOff, rightGlint: glintOff };
+
+    setAnimationState(resetState);
   }, []);
 
   // Event listeners
@@ -514,7 +540,7 @@ export default function MyFace() {
   }, [handlePointerMove, setFallbackPosition]);
 
   // Common transform for all face layers
-  const layerTransform = `translate(${layerOffset.x}px, ${layerOffset.y}px) perspective(1000px) rotateX(${perspective.rotateX}deg) rotateY(${perspective.rotateY}deg)`;
+  const layerTransform = `translate(${animationState.layer.x}px, ${animationState.layer.y}px) perspective(1000px) rotateX(${animationState.perspective.rotateX}deg) rotateY(${animationState.perspective.rotateY}deg)`;
 
   // Glint clip-path helper (hard edges for persistent glint)
   const getGlintClipPath = (pos: number, isRight: boolean) => {
@@ -580,8 +606,8 @@ export default function MyFace() {
         </div>
 
         {/* LAYER 2: EYEBALLS - Animated 3D eyeballs */}
-        <Eyeball position={LEFT_EYE} offset={leftEyeOffset} size={EYEBALL_SIZE} />
-        <Eyeball position={RIGHT_EYE} offset={rightEyeOffset} size={EYEBALL_SIZE} />
+        <Eyeball position={LEFT_EYE} offset={animationState.leftEye} size={EYEBALL_SIZE} />
+        <Eyeball position={RIGHT_EYE} offset={animationState.rightEye} size={EYEBALL_SIZE} />
 
         {/* LAYER 3: OVERLAY - Face with eye socket cutouts (masks eyeballs) */}
         <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform", clipPath: "inset(0 0 30% 0)" }}>
@@ -635,8 +661,8 @@ export default function MyFace() {
             position: "absolute",
             inset: 0,
             transform: layerTransform,
-            maskImage: getGlintMask(leftGlintPos, false),
-            WebkitMaskImage: getGlintMask(leftGlintPos, false),
+            maskImage: getGlintMask(animationState.leftGlint, false),
+            WebkitMaskImage: getGlintMask(animationState.leftGlint, false),
             opacity: GLINT_ANIMATED_OPACITY,
             willChange: "transform",
             pointerEvents: "none",
@@ -666,8 +692,8 @@ export default function MyFace() {
             position: "absolute",
             inset: 0,
             transform: layerTransform,
-            maskImage: getGlintMask(rightGlintPos, true),
-            WebkitMaskImage: getGlintMask(rightGlintPos, true),
+            maskImage: getGlintMask(animationState.rightGlint, true),
+            WebkitMaskImage: getGlintMask(animationState.rightGlint, true),
             opacity: GLINT_ANIMATED_OPACITY,
             willChange: "transform",
             pointerEvents: "none",

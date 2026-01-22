@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Image from 'next/image';
 
 interface ParallaxState {
@@ -29,9 +29,12 @@ interface CloudLayer {
 }
 
 export default function CloudAtmosphere() {
-  const [parallax, setParallax] = useState<ParallaxState>({ x: 0, y: 0 });
-  const [smoothParallax, setSmoothParallax] = useState<ParallaxState>({ x: 0, y: 0 });
   const [mounted, setMounted] = useState(false);
+
+  // Use refs instead of state for animation values to avoid re-renders
+  const parallaxRef = useRef<ParallaxState>({ x: 0, y: 0 });
+  const smoothParallaxRef = useRef<ParallaxState>({ x: 0, y: 0 });
+  const cloudRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const handlePointerMove = useCallback((clientX: number, clientY: number) => {
     if (typeof window === 'undefined') return;
@@ -42,7 +45,8 @@ export default function CloudAtmosphere() {
     const x = (clientX - centerX) / centerX;
     const y = (clientY - centerY) / centerY;
 
-    setParallax({ x: x * 25, y: y * 15 });
+    // Update ref instead of state - no re-render triggered
+    parallaxRef.current = { x: x * 25, y: y * 15 };
   }, []);
 
   useEffect(() => {
@@ -64,6 +68,9 @@ export default function CloudAtmosphere() {
     };
   }, [handlePointerMove]);
 
+  // Store cloudLayers data in a ref so animation loop can access it
+  const cloudLayersRef = useRef<CloudLayer[]>([]);
+
   useEffect(() => {
     if (!mounted) return;
 
@@ -71,16 +78,35 @@ export default function CloudAtmosphere() {
     const SMOOTHING = 0.06;
 
     const animate = () => {
-      setSmoothParallax(prev => ({
-        x: prev.x + (parallax.x - prev.x) * SMOOTHING,
-        y: prev.y + (parallax.y - prev.y) * SMOOTHING,
-      }));
+      const target = parallaxRef.current;
+      const smooth = smoothParallaxRef.current;
+
+      // Lerp smooth values toward target
+      const newX = smooth.x + (target.x - smooth.x) * SMOOTHING;
+      const newY = smooth.y + (target.y - smooth.y) * SMOOTHING;
+      smoothParallaxRef.current = { x: newX, y: newY };
+
+      // Direct DOM updates - no React re-renders
+      // Filter to non-hidden layers to match ref indices
+      const visibleLayers = cloudLayersRef.current.filter(l => !l.hidden);
+      cloudRefs.current.forEach((el, i) => {
+        if (el && visibleLayers[i]) {
+          const cloud = visibleLayers[i];
+          const m = cloud.parallaxMultiplier ?? 0;
+          const translateX = newX * m;
+          const translateY = newY * m * 0.3;
+          const flip = cloud.flip ? 'scaleX(-1)' : '';
+          const rotate = cloud.rotate ? `rotate(${cloud.rotate}deg)` : '';
+          el.style.transform = `translate(${translateX}px, ${translateY}px) ${flip} ${rotate}`.trim();
+        }
+      });
+
       animationId = requestAnimationFrame(animate);
     };
 
     animationId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationId);
-  }, [parallax, mounted]);
+  }, [mounted]);
 
   // Volumetric cloud floor - layered for depth
   const cloudLayers: CloudLayer[] = [
@@ -275,6 +301,9 @@ export default function CloudAtmosphere() {
     },
   ];
 
+  // Sync cloudLayers to ref for animation loop access
+  cloudLayersRef.current = cloudLayers;
+
   if (!mounted) return null;
 
   const renderCloudImage = (cloud: CloudLayer, index: number) => (
@@ -290,11 +319,13 @@ export default function CloudAtmosphere() {
     />
   );
 
-  const getBaseTransform = (cloud: CloudLayer) => {
-    const translateX = smoothParallax.x * (cloud.parallaxMultiplier ?? 0);
-    const translateY = smoothParallax.y * (cloud.parallaxMultiplier ?? 0) * 0.3;
-    return `translate(${translateX}px, ${translateY}px) ${cloud.flip ? 'scaleX(-1)' : ''} ${cloud.rotate ? `rotate(${cloud.rotate}deg)` : ''}`.trim();
+  // Initial transform with flip/rotate (parallax translate added by animation loop)
+  const getInitialTransform = (cloud: CloudLayer) => {
+    return `${cloud.flip ? 'scaleX(-1)' : ''} ${cloud.rotate ? `rotate(${cloud.rotate}deg)` : ''}`.trim();
   };
+
+  // Track non-hidden cloud index for refs
+  let refIndex = 0;
 
   return (
     <div
@@ -305,9 +336,10 @@ export default function CloudAtmosphere() {
       {cloudLayers.map((cloud, index) => {
         if (cloud.hidden) return null;
 
-        const baseTransform = getBaseTransform(cloud);
+        const currentRefIndex = refIndex++;
+        const initialTransform = getInitialTransform(cloud);
 
-        // Desktop styles
+        // Desktop styles (no transform - handled by animation loop via ref)
         const desktopStyle: React.CSSProperties = {
           position: 'absolute',
           bottom: cloud.offset.y,
@@ -315,7 +347,7 @@ export default function CloudAtmosphere() {
           width: cloud.size,
           zIndex: cloud.zIndex,
           opacity: cloud.opacity,
-          transform: baseTransform,
+          transform: initialTransform,
           filter: cloud.blur ? `blur(${cloud.blur}px)` : undefined,
         };
 
@@ -327,7 +359,7 @@ export default function CloudAtmosphere() {
           width: cloud.mobileSize,
           zIndex: cloud.zIndex,
           opacity: cloud.opacity,
-          transform: baseTransform,
+          transform: initialTransform,
           filter: cloud.blur ? `blur(${cloud.blur}px)` : undefined,
         };
 
@@ -340,7 +372,11 @@ export default function CloudAtmosphere() {
               </div>
             )}
             {/* Desktop version - visible at md breakpoint and above */}
-            <div className="hidden md:block" style={desktopStyle}>
+            <div
+              ref={el => { cloudRefs.current[currentRefIndex] = el; }}
+              className="hidden md:block"
+              style={desktopStyle}
+            >
               {renderCloudImage(cloud, index)}
             </div>
           </div>
