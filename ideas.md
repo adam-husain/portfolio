@@ -1,60 +1,85 @@
-# Portfolio Concept: Space to Earth Career Journey
+# Portfolio Concept: Space to Earth Visual Journey
 
 ## Theme
-Interstellar-inspired descent from cosmos to ground, representing career timeline from present to origins.
+Interstellar-inspired descent from cosmos to ground, showcasing design and 3D animation skills through scroll-driven storytelling.
 
 ## Direction
-- **Scroll Down** = Travel back in time
-- **Space (Top)** = Present roles
-- **Earth (Bottom)** = Career beginnings
+- **Scroll Down** = Descend from space to earth
+- **Space (Top)** = Beginning of journey
+- **Earth (Bottom)** = Destination
 
 ## Visual Zones
 
-### 1. Deep Space — Nation.dev
-- Nebula, stars, cosmic void
-- "Do Not Go Gentle Into That Good Night" floating as ambient light text
-- Remote work = floating in the digital cosmos
+### 1. Outer Space — The Stage
+- Solar system with planets (sun, mars, saturn, jupiter)
+- Lens flare effect responding to cursor
+- Starfield background with twinkling layers
 
-### 2. Orbital — Outer Insights
-- Satellites in orbit
+**Text:** "Every story needs a stage"
+
+---
+
+### 2. Rocket to Moon — Motion
+- Rocket flies across screen toward moon
+- Moon revealed via expanding elliptical mask
+- Rocket flame intensifies as it approaches
+- Chemtrails fade during scroll
+
+**Text:** "A good design is not rocket science"
+**Description:** "But a rocket sure helps with making it look cool."
+
+---
+
+### 3. Orbital View — Dimension
+- Moon scales out and repositions to corner
+- Satellite orbits into view
 - Data streams visualized as light trails
-- Big data / LLM work as cosmic information flow
 
-### 3. Moon Surface — Social Presence
-- Lunar landscape with transmission towers
-- Earth visible on horizon (global reach)
-- Social connections as planetary scale
+**Text:** "Do not go gentle into that good night"
+**Description:** "For old age should burn and rave at close of day; Rage, rage against the dying of the light."
 
-### 4. Stratosphere — Petville Global
-- Airplane at high altitude
-- Adam jumps out (the entrepreneurial leap)
-- Thin atmosphere, edge of space
+---
 
-### 5. Cloudscape — SHRDC
-- Hot air balloon floating
-- Mountain peaks piercing clouds
-- Adam silhouette in freefall
-- "Vision detection" = seeing from above
+### 4. Atmospheric Re-entry — You Are Not Alone
+- Asteroids crash downward
+- Heat and flame effects intensify (re-entry burn)
+- Asteroids burn out and exit top-right
+- Hot air balloon drifts in from bottom-left with rotation
+- Balloon stays left, text on right (desktop)
 
-### 6. Cityscape — Snyper Labs
-- Dubai-inspired futuristic skyline
-- Burj Khalifa silhouette
-- Neon lights, game dev aesthetic
-- 3D graphics / Unreal Engine vibe
+**Title:** "You are not alone"
 
-### 7. Forest Floor — Self-Employed
-- Pinecone trees
-- Adam lands, trees bend with spring physics
-- 2 pinecones drop, slide Adam out
-- Text reveals on bend (freelance origins)
+**Description:** "The world feels heavy sometimes. The noise, the uncertainty, the weight of it all. But even in freefall, there's a quiet truth — we're all descending together. And somehow, that makes the fall a little lighter."
 
-## Post-Landing (Future)
+---
+
+### 5. Cloudscape — Stillness
+- Hot air balloon scales down
+- Volumetric clouds fade in (from public/images/clouds/)
+- Soft parallax layering
+- Calm after the intensity
+
+**Text:** "Sometimes you need to slow down to see clearly"
+
+---
+
+### 6. Cityscape — Arrival
+- Futuristic skyline emerges from clouds
+- Neon lights, geometric buildings
+- Journey's end
+
+**Text:** "Every descent has a destination"
+
+---
+
+## Post-Journey (Future)
 - Education section
 - Projects showcase
 - Contact/Footer
 
 ## Animation Style
-- Static images transformed via GSAP
-- Scroll-driven storytelling
-- Spring physics for pinecone landing
+- Scroll-driven storytelling via GSAP ScrollTrigger
+- 3D elements with React Three Fiber
 - Parallax layering throughout
+- Smooth interpolation (no jittery motion)
+- Static images with GSAP transforms (no animated sprites)

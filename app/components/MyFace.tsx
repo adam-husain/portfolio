@@ -44,7 +44,7 @@ const HIGHLIGHT_OPACITY = 0.9;
 // ============================================
 
 // Eye tracking
-const MOVEMENT_MAGNITUDE = 1.8; // % of container width - max eyeball movement from center
+const MOVEMENT_MAGNITUDE = 1.6; // % of container width - max eyeball movement from center
 const CONVERGENCE_MIN_DISTANCE = 18; // % - full convergence (cross-eye) below this
 const CONVERGENCE_MAX_DISTANCE = 91; // % - parallel gaze above this
 const MIN_CONVERGENCE = 0.15; // minimum convergence factor (unitless ratio)

@@ -11,7 +11,7 @@ This project uses Bun runtime and package manager.
 
 ## Project Structure
 - `layout.md` - Final page design specifications
-- `resume.pdf` - Source for career/project data
+- `ideas.md` - Brainstorming and ideas
 
 ## Design Principles
 - Single-page scroll-driven storytelling
