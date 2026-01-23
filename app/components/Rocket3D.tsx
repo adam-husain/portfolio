@@ -10,6 +10,10 @@ import { signalReady } from "./LoadingScreen";
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Buffer zones for mounting/unmounting (percentage of viewport)
+const MOUNT_BUFFER = 0.15; // Mount 15% before animation starts
+const UNMOUNT_BUFFER = 0.1; // Unmount 10% after animation ends
+
 // Animation constants
 const CONFIG = {
   scale: 0.05,
@@ -428,8 +432,10 @@ export default function Rocket3D() {
   const [screenPos, setScreenPos] = useState<ScreenPosition>({ x: 0, y: 0, rotation: 0, visible: false });
   const [trails, setTrails] = useState<TrailPoint[]>([]);
   const [isReady, setIsReady] = useState(false);
+  const [shouldMount, setShouldMount] = useState(false);
   const trailIdRef = useRef(0);
   const lastStateUpdateRef = useRef(0);
+  const hasSignaledReady = useRef(false);
 
   // Use refs to access current values in the interval without adding dependencies
   const screenPosRef = useRef(screenPos);
@@ -439,7 +445,43 @@ export default function Rocket3D() {
 
   const handleReady = useCallback(() => {
     setIsReady(true);
-    signalReady();
+    if (!hasSignaledReady.current) {
+      hasSignaledReady.current = true;
+      signalReady();
+    }
+  }, []);
+
+  // Mount/unmount detection - wider range than animation
+  useEffect(() => {
+    const mountTrigger = ScrollTrigger.create({
+      trigger: "#moon-section",
+      start: `top bottom+=${window.innerHeight * MOUNT_BUFFER}`,
+      end: `top top-=${window.innerHeight * UNMOUNT_BUFFER}`,
+      onEnter: () => setShouldMount(true),
+      onLeave: () => {
+        setShouldMount(false);
+        setTrails([]); // Clear trails when unmounting
+      },
+      onEnterBack: () => setShouldMount(true),
+      onLeaveBack: () => {
+        setShouldMount(false);
+        setTrails([]);
+      },
+    });
+
+    // Check initial position - mount if already in range
+    const moonSection = document.getElementById("moon-section");
+    if (moonSection) {
+      const rect = moonSection.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const startThreshold = viewportHeight * (1 + MOUNT_BUFFER);
+      const endThreshold = -viewportHeight * UNMOUNT_BUFFER;
+      if (rect.top < startThreshold && rect.top > endThreshold) {
+        setShouldMount(true);
+      }
+    }
+
+    return () => mountTrigger.kill();
   }, []);
 
   // Single interval for trail creation and fading with idle detection
@@ -536,6 +578,11 @@ export default function Rocket3D() {
   const handleScreenPositionUpdate = useCallback((pos: ScreenPosition) => {
     setScreenPos(pos);
   }, []);
+
+  // Don't render anything if not in active zone
+  if (!shouldMount) {
+    return null;
+  }
 
   return (
     <>
