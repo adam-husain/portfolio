@@ -7,12 +7,16 @@ interface ScrollProgressState {
   section2: number;
   section3: number;
   section4: number;
+  section5: number;
+  section6: number;
 }
 
 let globalState: ScrollProgressState = {
   section2: 0,
   section3: 0,
   section4: 0,
+  section5: 0,
+  section6: 0,
 };
 
 const listeners = new Set<() => void>();
@@ -48,6 +52,20 @@ export function updateSection3Progress(progress: number) {
 export function updateSection4Progress(progress: number) {
   if (globalState.section4 !== progress) {
     globalState = { ...globalState, section4: progress };
+    notifyListeners();
+  }
+}
+
+export function updateSection5Progress(progress: number) {
+  if (globalState.section5 !== progress) {
+    globalState = { ...globalState, section5: progress };
+    notifyListeners();
+  }
+}
+
+export function updateSection6Progress(progress: number) {
+  if (globalState.section6 !== progress) {
+    globalState = { ...globalState, section6: progress };
     notifyListeners();
   }
 }

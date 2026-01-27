@@ -44,7 +44,7 @@ const HIGHLIGHT_OPACITY = 0.9;
 // ============================================
 
 // Eye tracking
-const MOVEMENT_MAGNITUDE = 1.6; // % of container width - max eyeball movement from center
+const MOVEMENT_MAGNITUDE = 1.5; // % of container width - max eyeball movement from center
 const CONVERGENCE_MIN_DISTANCE = 18; // % - full convergence (cross-eye) below this
 const CONVERGENCE_MAX_DISTANCE = 91; // % - parallel gaze above this
 const MIN_CONVERGENCE = 0.15; // minimum convergence factor (unitless ratio)
@@ -53,6 +53,10 @@ const SMOOTHING_FACTOR = 0.15; // eye movement smoothing (0.1-0.3 recommended)
 // Close proximity (eyes look forward when cursor is near face)
 const PROXIMITY_THRESHOLD_INNER = 9; // % of container width
 const PROXIMITY_THRESHOLD_OUTER = 27; // % of container width
+
+// Far distance (eyes stop tracking when cursor is too far)
+const MAX_TRACKING_DISTANCE_INNER = 100; // % of container width - start fading at this distance
+const MAX_TRACKING_DISTANCE_OUTER = 150; // % of container width - fully neutral beyond this
 
 // 3D parallax for face layers
 const LAYER_MOVEMENT = 0.36; // % of container width - max layer movement
@@ -224,10 +228,22 @@ function calculateEyeOffsets(
   const convergenceMax = containerWidth * (CONVERGENCE_MAX_DISTANCE / 100);
   const proximityInner = containerWidth * (PROXIMITY_THRESHOLD_INNER / 100);
   const proximityOuter = containerWidth * (PROXIMITY_THRESHOLD_OUTER / 100);
+  const maxTrackingInner = containerWidth * (MAX_TRACKING_DISTANCE_INNER / 100);
+  const maxTrackingOuter = containerWidth * (MAX_TRACKING_DISTANCE_OUTER / 100);
 
   const eyesMidX = (leftEyeCenter.x + rightEyeCenter.x) / 2;
   const eyesMidY = (leftEyeCenter.y + rightEyeCenter.y) / 2;
   const distToCursor = Math.hypot(cursorX - eyesMidX, cursorY - eyesMidY);
+
+  // Far distance check - eyes fade to neutral when cursor is too far
+  if (distToCursor > maxTrackingOuter) {
+    return { left: { x: 0, y: 0 }, right: { x: 0, y: 0 } };
+  }
+
+  // Calculate far distance fade factor (1 = full tracking, 0 = no tracking)
+  const farDistanceFactor = distToCursor <= maxTrackingInner
+    ? 1
+    : 1 - ((distToCursor - maxTrackingInner) / (maxTrackingOuter - maxTrackingInner));
 
   const leftDx = cursorX - leftEyeCenter.x;
   const leftDy = cursorY - leftEyeCenter.y;
@@ -276,8 +292,8 @@ function calculateEyeOffsets(
     const easedFactor = 1 - Math.pow(1 - distanceFactor, 2);
 
     return {
-      x: finalNormX * magnitude * easedFactor * proximityFactor,
-      y: finalNormY * magnitude * easedFactor * proximityFactor,
+      x: finalNormX * magnitude * easedFactor * proximityFactor * farDistanceFactor,
+      y: finalNormY * magnitude * easedFactor * proximityFactor * farDistanceFactor,
     };
   };
 

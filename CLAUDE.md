@@ -13,6 +13,7 @@ This project uses Bun runtime and package manager.
 - `layout.md` - Final page design specifications
 - `ideas.md` - Brainstorming and ideas
 - `app/lib/animationTiming.ts` - Global animation timing configuration for all sections
+- `app/components/ScrollNormalizer.tsx` - Fixes Windows Precision Touchpad scroll lag via `ScrollTrigger.normalizeScroll()`
 
 ## Design Principles
 - Single-page scroll-driven storytelling

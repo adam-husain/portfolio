@@ -3,7 +3,12 @@ import Rocket3D from "./components/Rocket3D";
 import MoonReveal from "./components/MoonReveal";
 import Satellite3D from "./components/Satellite3D";
 import ReentrySection from "./components/ReentrySection";
+import CloudscapeSection from "./components/CloudscapeSection";
+import CityscapeSection from "./components/CityscapeSection";
 import MyFace from "./components/MyFace";
+import ParallaxBackground from "./components/ParallaxBackground";
+import CloudAtmosphere from "./components/CloudAtmosphere";
+import ScrollNormalizer from "./components/ScrollNormalizer";
 import { siteConfig } from "@/lib/site";
 
 export default function Home() {
@@ -11,14 +16,11 @@ export default function Home() {
 
   return (
     <>
-      {/* Animated star background */}
-      <div className="fixed inset-0 bg-background" aria-hidden="true">
-        {/* Gradient: pitch black to dark gray */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black to-zinc-800" />
-        <div className="stars-small absolute inset-0 bg-repeat animate-twinkle" />
-        <div className="stars-medium absolute inset-0 bg-repeat animate-twinkle-delayed" />
-        <div className="stars-large absolute inset-0 bg-repeat animate-twinkle-slow" />
-      </div>
+      {/* Normalize scroll for Windows Precision Touchpad compatibility */}
+      <ScrollNormalizer />
+
+      {/* Parallax starry background that transitions to blue sky */}
+      <ParallaxBackground />
 
       <section
         className="relative min-h-screen min-h-dvh flex items-center justify-center overflow-hidden"
@@ -51,8 +53,8 @@ export default function Home() {
       {/* Scroll-driven moon reveal with curved mask */}
       <MoonReveal />
 
-      {/* Volumetric clouds around the face */}
-      {/* <CloudAtmosphere /> */}
+      {/* Volumetric clouds around the balloon in section 4 */}
+      <CloudAtmosphere />
 
       {/* My face that tracks my eye. Positioned at bottom, half visible */}
       <div
@@ -83,6 +85,12 @@ export default function Home() {
 
       {/* Section 4: Atmospheric Re-entry with asteroids and hot air balloon */}
       <ReentrySection />
+
+      {/* Section 5: Cloudscape - Stillness (balloon scales down, clouds prominent) */}
+      <CloudscapeSection />
+
+      {/* Section 6: Cityscape - Arrival (futuristic skyline emerges) */}
+      <CityscapeSection />
 
       {/* Noscript fallback for SEO */}
       <noscript>

@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef, useEffect, useState, useMemo, useCallback } from "react";
+import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import { Canvas, useFrame, useThree, useLoader } from "@react-three/fiber";
 import { Center } from "@react-three/drei";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { updateSection4Progress } from "@/app/lib/scrollProgress";
+import { updateSection4Progress, useScrollProgress, mapRange } from "@/app/lib/scrollProgress";
 import ReentryDebugPanel, {
   type ReentryConfig,
   type AsteroidPath,
@@ -27,7 +27,7 @@ const DEFAULT_CONFIG: ReentryConfig = {
   asteroidScaleRange: [0.15, 0.35],
 
   // Balloon (starts after asteroids finish ~0.5 progress)
-  balloonScale: 0.8,
+  balloonScale: 1.8,
   balloonStartX: -8,
   balloonStartY: -6,
   balloonEndX: -4,
@@ -78,10 +78,11 @@ function AsteroidModel({
   const { camera, size } = useThree();
   const positionRef = useRef(new THREE.Vector3());
   // Rotation multipliers - how many full rotations per scroll through section
+  // Slower rotation for a more natural tumbling feel
   const rotationMultiplier = useRef({
-    x: 2 + Math.random() * 2,
-    y: 1.5 + Math.random() * 1.5,
-    z: 1 + Math.random() * 1,
+    x: 0.4 + Math.random() * 0.4,  // ~0.4-0.8 rotations (was 2-4)
+    y: 0.3 + Math.random() * 0.3,  // ~0.3-0.6 rotations (was 1.5-3)
+    z: 0.2 + Math.random() * 0.2,  // ~0.2-0.4 rotations (was 1-2)
   });
   // Random offset so asteroids start at different angles
   const rotationOffset = useRef({
@@ -170,9 +171,11 @@ function AsteroidModel({
 function BalloonModel({
   scrollProgress,
   config,
+  section5Progress,
 }: {
   scrollProgress: React.MutableRefObject<number>;
   config: ReentryConfig;
+  section5Progress: React.MutableRefObject<number>;
 }) {
   const gltf = useLoader(GLTFLoader, "/assets/balloon.glb");
   const balloonRef = useRef<THREE.Group>(null);
@@ -181,6 +184,7 @@ function BalloonModel({
     x: config.balloonStartX,
     y: config.balloonStartY,
     rotZ: 0,
+    scale: 0,
   });
 
   useFrame((_, delta) => {
@@ -188,31 +192,44 @@ function BalloonModel({
 
     timeRef.current += delta;
     const progress = scrollProgress.current;
+    const exitProgress = section5Progress.current;
 
     // Balloon appears after asteroids finish animating (starts at 0.5 progress)
     const balloonProgress = Math.max(0, (progress - 0.5) / 0.5);
     const eased = 1 - Math.pow(1 - Math.min(1, balloonProgress), 3);
 
-    // Target position
-    const targetX = THREE.MathUtils.lerp(config.balloonStartX, config.balloonEndX, eased);
-    const targetY = THREE.MathUtils.lerp(config.balloonStartY, config.balloonEndY, eased);
+    // Exit transition: balloon scales to 50% and floats up off screen
+    // exitAmount goes from 0 to 1 as section 5 progresses (0.1 to 0.5)
+    const exitAmount = mapRange(exitProgress, 0.1, 0.5, 0, 1);
 
-    // Wobble effect
-    const wobbleX = Math.sin(timeRef.current * config.balloonWobbleSpeed) * config.balloonWobbleAmount;
-    const wobbleZ = Math.sin(timeRef.current * config.balloonWobbleSpeed * 0.7) * 0.05;
+    // Target position - floats up and out of screen during exit
+    // Moves up by 15 units (well above the viewport)
+    const exitDriftY = exitAmount * 15;
+    const targetX = THREE.MathUtils.lerp(config.balloonStartX, config.balloonEndX, eased);
+    const targetY = THREE.MathUtils.lerp(config.balloonStartY, config.balloonEndY, eased) + exitDriftY;
+
+    // Target scale - shrinks to 50% during exit (1.0 -> 0.5 multiplier)
+    const scaleMultiplier = 1 - (exitAmount * 0.5);
+    const targetScale = config.balloonScale * scaleMultiplier;
+
+    // Wobble effect (reduces during exit for a calm departure)
+    const wobbleIntensity = 1 - exitAmount;
+    const wobbleX = Math.sin(timeRef.current * config.balloonWobbleSpeed) * config.balloonWobbleAmount * wobbleIntensity;
+    const wobbleZ = Math.sin(timeRef.current * config.balloonWobbleSpeed * 0.7) * 0.05 * wobbleIntensity;
 
     // Smooth interpolation
     const smoothFactor = 1 - Math.pow(0.9, delta * 60);
     smoothedValues.current.x = THREE.MathUtils.lerp(smoothedValues.current.x, targetX + wobbleX, smoothFactor);
     smoothedValues.current.y = THREE.MathUtils.lerp(smoothedValues.current.y, targetY, smoothFactor);
     smoothedValues.current.rotZ = THREE.MathUtils.lerp(smoothedValues.current.rotZ, wobbleZ, smoothFactor);
+    smoothedValues.current.scale = THREE.MathUtils.lerp(smoothedValues.current.scale, targetScale, smoothFactor);
 
     balloonRef.current.position.set(smoothedValues.current.x, smoothedValues.current.y, 0);
     balloonRef.current.rotation.set(0, timeRef.current * 0.2, smoothedValues.current.rotZ);
-    balloonRef.current.scale.setScalar(config.balloonScale);
+    balloonRef.current.scale.setScalar(smoothedValues.current.scale);
 
-    // Visibility
-    balloonRef.current.visible = balloonProgress > 0;
+    // Visibility - hide when off screen or not yet appeared
+    balloonRef.current.visible = balloonProgress > 0 && smoothedValues.current.y < 12;
   });
 
   return (
@@ -303,6 +320,7 @@ function Scene({
   config,
   expandedAsteroidIndices,
   balloonExpanded,
+  section5Progress,
 }: {
   scrollProgress: React.MutableRefObject<number>;
   onAsteroidPositionUpdate: (index: number, x: number, y: number, visible: boolean, rotation: number, scale: number) => void;
@@ -310,6 +328,7 @@ function Scene({
   config: ReentryConfig;
   expandedAsteroidIndices: number[];
   balloonExpanded: boolean;
+  section5Progress: React.MutableRefObject<number>;
 }) {
   const { camera } = useThree();
 
@@ -337,7 +356,7 @@ function Scene({
       ))}
 
       {/* Balloon */}
-      <BalloonModel scrollProgress={scrollProgress} config={config} />
+      <BalloonModel scrollProgress={scrollProgress} config={config} section5Progress={section5Progress} />
 
       {/* Debug indicators for expanded asteroids */}
       {expandedAsteroidIndices.map((index) => (
@@ -520,62 +539,199 @@ function AsteroidFlame({
 }
 
 function FlameEffects({
-  asteroidPositions,
-  scrollProgress,
+  asteroidPositionsRef,
+  scrollProgressRef,
 }: {
-  asteroidPositions: { x: number; y: number; visible: boolean; rotation: number; scale: number }[];
-  scrollProgress: number;
+  asteroidPositionsRef: React.MutableRefObject<{ x: number; y: number; visible: boolean; rotation: number; scale: number }[]>;
+  scrollProgressRef: React.MutableRefObject<number>;
 }) {
-  // Check if any asteroid is visible
-  const hasVisibleAsteroids = asteroidPositions.some((pos) => pos.visible);
-  const isInActiveRange = scrollProgress >= 0.05 && scrollProgress <= 0.85;
-  const shouldShowEffects = hasVisibleAsteroids && isInActiveRange;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const flameRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const animationFrameRef = useRef<number>(0);
 
-  if (!shouldShowEffects) {
-    return null;
-  }
+  useEffect(() => {
+    const animate = () => {
+      const positions = asteroidPositionsRef.current;
+      const progress = scrollProgressRef.current;
+      const isInActiveRange = progress >= 0.05 && progress <= 0.85;
+      const intensity = Math.sin(progress * Math.PI);
 
-  // Intensity peaks in the middle of the scroll
-  const intensity = Math.sin(scrollProgress * Math.PI);
+      positions.forEach((pos, idx) => {
+        const flameEl = flameRefs.current[idx];
+        if (!flameEl) return;
 
+        const shouldShow = pos.visible && isInActiveRange;
+        flameEl.style.display = shouldShow ? "block" : "none";
+
+        if (shouldShow) {
+          const flameRotation = (-pos.rotation * 180) / Math.PI + 90;
+          flameEl.style.left = `${pos.x}px`;
+          flameEl.style.top = `${pos.y}px`;
+          flameEl.style.transform = `translate(-50%, -50%) rotate(${flameRotation}deg)`;
+          flameEl.style.setProperty("--flame-intensity", String(intensity));
+          flameEl.style.setProperty("--flame-scale", String(pos.scale / 0.2));
+        }
+      });
+
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameRef.current);
+  }, [asteroidPositionsRef, scrollProgressRef]);
+
+  // Pre-render flame elements for each asteroid path
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {asteroidPositions.map((pos, idx) => {
-        if (!pos.visible) return null;
-
-        return (
-          <AsteroidFlame
-            key={idx}
-            x={pos.x}
-            y={pos.y}
-            rotation={pos.rotation}
-            intensity={intensity}
-            scale={pos.scale}
-          />
-        );
-      })}
+    <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-hidden">
+      {asteroidPositionsRef.current.map((_, idx) => (
+        <FlameElement
+          key={idx}
+          ref={(el) => { flameRefs.current[idx] = el; }}
+        />
+      ))}
     </div>
   );
 }
 
+// Memoized flame element that uses CSS variables for dynamic values
+const FlameElement = React.forwardRef<HTMLDivElement, object>(function FlameElement(_, ref) {
+  return (
+    <div
+      ref={ref}
+      className="absolute pointer-events-none"
+      style={{ display: "none", transformOrigin: "center center" }}
+    >
+      {/* Outer glow */}
+      <div
+        className="absolute rounded-full flame-glow"
+        style={{
+          width: "calc(var(--flame-scale, 1) * 160px)",
+          height: "calc(var(--flame-scale, 1) * 200px)",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -30%)",
+          background: `radial-gradient(ellipse 100% 120% at 50% 30%,
+            rgba(255, 180, 80, calc(0.5 * var(--flame-intensity, 0.5))) 0%,
+            rgba(255, 120, 40, calc(0.3 * var(--flame-intensity, 0.5))) 40%,
+            transparent 70%)`,
+          filter: "blur(16px)",
+        }}
+      />
+
+      {/* Main flame body */}
+      <div
+        className="absolute"
+        style={{
+          width: "calc(var(--flame-scale, 1) * 42px)",
+          height: "calc(var(--flame-scale, 1) * 100px)",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -20%)",
+          background: `linear-gradient(to bottom,
+            rgba(255, 230, 180, 0.95) 0%,
+            rgba(255, 160, 80, 0.85) 35%,
+            rgba(255, 100, 30, 0.6) 65%,
+            transparent 100%)`,
+          borderRadius: "40% 40% 50% 50% / 25% 25% 75% 75%",
+          filter: "blur(3px)",
+        }}
+      />
+
+      {/* Bright inner core */}
+      <div
+        className="absolute"
+        style={{
+          width: "calc(var(--flame-scale, 1) * 17px)",
+          height: "calc(var(--flame-scale, 1) * 45px)",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -15%)",
+          background: `linear-gradient(to bottom,
+            rgba(255,255,250,1) 0%,
+            rgba(255,245,200,0.95) 35%,
+            rgba(255,220,150,0.7) 65%,
+            transparent 100%)`,
+          borderRadius: "45% 45% 50% 50% / 30% 30% 70% 70%",
+          filter: "blur(1.5px)",
+        }}
+      />
+
+      {/* Secondary flame wisps */}
+      <div
+        className="absolute"
+        style={{
+          width: "calc(var(--flame-scale, 1) * 29px)",
+          height: "calc(var(--flame-scale, 1) * 70px)",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-60%, -10%)",
+          background: `linear-gradient(to bottom,
+            rgba(255,200,100,0.8) 0%,
+            rgba(255,150,50,0.5) 50%,
+            transparent 100%)`,
+          borderRadius: "50% 40% 50% 50% / 30% 25% 75% 70%",
+          filter: "blur(4px)",
+        }}
+      />
+
+      <div
+        className="absolute"
+        style={{
+          width: "calc(var(--flame-scale, 1) * 25px)",
+          height: "calc(var(--flame-scale, 1) * 65px)",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-40%, -5%)",
+          background: `linear-gradient(to bottom,
+            rgba(255,180,80,0.7) 0%,
+            rgba(255,130,40,0.4) 50%,
+            transparent 100%)`,
+          borderRadius: "40% 50% 50% 50% / 25% 30% 70% 75%",
+          filter: "blur(4px)",
+        }}
+      />
+    </div>
+  );
+});
+
 // ============================================================
 // HEAT DISTORTION OVERLAY
 // ============================================================
-function HeatDistortion({ scrollProgress }: { scrollProgress: number }) {
-  const intensity = Math.sin(scrollProgress * Math.PI) * 0.3;
+function HeatDistortion({ scrollProgressRef }: { scrollProgressRef: React.MutableRefObject<number> }) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const animationFrameRef = useRef<number>(0);
 
-  if (intensity < 0.05) return null;
+  useEffect(() => {
+    const animate = () => {
+      if (!overlayRef.current) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      const intensity = Math.sin(scrollProgressRef.current * Math.PI) * 0.3;
+
+      if (intensity < 0.05) {
+        overlayRef.current.style.opacity = "0";
+      } else {
+        overlayRef.current.style.opacity = "1";
+        overlayRef.current.style.background = `radial-gradient(ellipse 80% 60% at 50% 30%,
+          rgba(255, 100, 0, ${intensity * 0.15}) 0%,
+          rgba(255, 50, 0, ${intensity * 0.05}) 50%,
+          transparent 100%)`;
+      }
+
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameRef.current);
+  }, [scrollProgressRef]);
 
   return (
     <div
+      ref={overlayRef}
       className="absolute inset-0 pointer-events-none"
-      style={{
-        background: `radial-gradient(ellipse 80% 60% at 50% 30%,
-          rgba(255, 100, 0, ${intensity * 0.15}) 0%,
-          rgba(255, 50, 0, ${intensity * 0.05}) 50%,
-          transparent 100%)`,
-        mixBlendMode: "screen",
-      }}
+      style={{ mixBlendMode: "screen", opacity: 0 }}
     />
   );
 }
@@ -585,10 +741,11 @@ function HeatDistortion({ scrollProgress }: { scrollProgress: number }) {
 // ============================================================
 export default function ReentrySection() {
   const scrollProgressRef = useRef(0);
-  const [scrollProgress, setScrollProgress] = useState(0);
+  const section5ProgressRef = useRef(0);
   const [config, setConfig] = useState<ReentryConfig>(DEFAULT_CONFIG);
   const [asteroidPaths, setAsteroidPaths] = useState<AsteroidPath[]>(DEFAULT_ASTEROID_PATHS);
-  const [asteroidPositions, setAsteroidPositions] = useState<{ x: number; y: number; visible: boolean; rotation: number; scale: number }[]>(
+  // Use ref for asteroid positions to avoid re-renders on every frame
+  const asteroidPositionsRef = useRef<{ x: number; y: number; visible: boolean; rotation: number; scale: number }[]>(
     DEFAULT_ASTEROID_PATHS.map((p) => ({ x: 0, y: 0, visible: false, rotation: 0, scale: p.scale }))
   );
   const [expandedAsteroidIndices, setExpandedAsteroidIndices] = useState<number[]>([]);
@@ -596,18 +753,38 @@ export default function ReentrySection() {
   const textRef = useRef<HTMLDivElement>(null);
   const configRef = useRef(config);
 
+  // Subscribe to section 5 progress for text fade-out
+  const { section5 } = useScrollProgress();
+
+  // Keep section5 ref in sync and handle text fade-out
+  useEffect(() => {
+    section5ProgressRef.current = section5;
+
+    // Fade out text when entering section 5
+    if (textRef.current && section5 > 0) {
+      const section5FadeOut = 1 - mapRange(section5, 0.1, 0.4);
+      // Get current fade-in opacity from the element or calculate it
+      const currentConfig = configRef.current;
+      const textProgress = Math.max(
+        0,
+        Math.min(1, (scrollProgressRef.current - currentConfig.textStart) / (currentConfig.textEnd - currentConfig.textStart))
+      );
+      const easedFadeIn = 1 - Math.pow(1 - textProgress, 2);
+      const finalOpacity = easedFadeIn * section5FadeOut;
+
+      textRef.current.style.opacity = String(finalOpacity);
+    }
+  }, [section5]);
+
   // Keep configRef in sync
   useEffect(() => {
     configRef.current = config;
   }, [config]);
 
   // Handle asteroid position updates from 3D scene
+  // Uses ref to avoid re-renders - FlameEffects reads from ref in its own animation loop
   const handleAsteroidPositionUpdate = useCallback((index: number, x: number, y: number, visible: boolean, rotation: number, scale: number) => {
-    setAsteroidPositions((prev) => {
-      const newPositions = [...prev];
-      newPositions[index] = { x, y, visible, rotation, scale };
-      return newPositions;
-    });
+    asteroidPositionsRef.current[index] = { x, y, visible, rotation, scale };
   }, []);
 
   // Debug panel handlers
@@ -645,7 +822,6 @@ export default function ReentrySection() {
       scrub: true,
       onUpdate: (self) => {
         scrollProgressRef.current = self.progress;
-        setScrollProgress(self.progress);
         updateSection4Progress(self.progress);
 
         // Text animation using ref for current config values
@@ -654,24 +830,28 @@ export default function ReentrySection() {
           0,
           Math.min(1, (self.progress - currentConfig.textStart) / (currentConfig.textEnd - currentConfig.textStart))
         );
-        const easedText = 1 - Math.pow(1 - textProgress, 2);
+        const easedFadeIn = 1 - Math.pow(1 - textProgress, 2);
+
+        // Fade out when entering section 5 (0.1 to 0.4 of section 5 progress)
+        const section5FadeOut = 1 - mapRange(section5ProgressRef.current, 0.1, 0.4);
+
+        // Final opacity is fade-in multiplied by fade-out
+        const finalOpacity = easedFadeIn * section5FadeOut;
 
         if (textRef.current) {
-          textRef.current.style.opacity = String(easedText);
-          textRef.current.style.transform = `translateY(calc(-50% + ${(1 - easedText) * 50}px))`;
+          textRef.current.style.opacity = String(finalOpacity);
+          textRef.current.style.transform = `translateY(calc(-50% + ${(1 - easedFadeIn) * 50}px))`;
         }
       },
       onRefresh: (self) => {
         // Sync progress immediately when trigger is refreshed
         scrollProgressRef.current = self.progress;
-        setScrollProgress(self.progress);
         updateSection4Progress(self.progress);
       },
     });
 
     // Immediately sync to current scroll position on mount
     scrollProgressRef.current = trigger.progress;
-    setScrollProgress(trigger.progress);
     updateSection4Progress(trigger.progress);
 
     return () => trigger.kill();
@@ -689,7 +869,7 @@ export default function ReentrySection() {
 
       {/* Heat distortion overlay */}
       <div className="fixed inset-0 z-[30] pointer-events-none">
-        <HeatDistortion scrollProgress={scrollProgress} />
+        <HeatDistortion scrollProgressRef={scrollProgressRef} />
       </div>
 
       {/* 3D Canvas */}
@@ -709,6 +889,7 @@ export default function ReentrySection() {
             config={config}
             expandedAsteroidIndices={expandedAsteroidIndices}
             balloonExpanded={balloonExpanded}
+            section5Progress={section5ProgressRef}
           />
         </Canvas>
       </div>
@@ -716,8 +897,8 @@ export default function ReentrySection() {
       {/* Flame effects overlay */}
       <div className="fixed inset-0 z-[32] pointer-events-none">
         <FlameEffects
-          asteroidPositions={asteroidPositions}
-          scrollProgress={scrollProgress}
+          asteroidPositionsRef={asteroidPositionsRef}
+          scrollProgressRef={scrollProgressRef}
         />
       </div>
 
