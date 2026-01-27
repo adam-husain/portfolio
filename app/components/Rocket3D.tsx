@@ -7,28 +7,28 @@ import * as THREE from "three";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { signalReady } from "./LoadingScreen";
+import RocketDebugPanel, { type RocketConfig } from "./debug/RocketDebugPanel";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// Buffer zones for mounting/unmounting (percentage of viewport)
-const MOUNT_BUFFER = 0.15; // Mount 15% before animation starts
-const UNMOUNT_BUFFER = 0.1; // Unmount 10% after animation ends
-
-// Animation constants
-const CONFIG = {
-  scale: 0.05,
+// Default animation constants
+const DEFAULT_CONFIG: RocketConfig = {
+  scale: 0.075,
   startX: 5.6,
-  startY: -1,
+  startY: 1.1,
   endX: -6.9,
-  endY: -7.4,
-  arcHeight: 2.1,
-  bounceAmplitude: 0.22,
-  bounceSpeed: 0.3,
-  wobbleSpeed: 0.3,
+  endY: -8.3,
+  arcHeight: 1.6,
+  bounceAmplitude: 0.13,
+  bounceSpeed: 0.25,
+  wobbleSpeed: 0.25,
   rotationOffset: 0,
   flameSize: 35,
   flameGlow: 40,
   boosterOffset3D: 0.75,
+  // Smoothing factors (0-1, lower = smoother but more lag)
+  positionSmoothing: 0.05,
+  rotationSmoothing: 0.1,
 };
 
 interface ScreenPosition {
@@ -36,6 +36,19 @@ interface ScreenPosition {
   y: number;
   rotation: number;
   visible: boolean;
+}
+
+interface DebugPathPoint {
+  x: number;
+  y: number;
+  progress: number;
+}
+
+interface RocketDebugInfo {
+  world3D: { x: number; y: number; z: number };
+  targetWorld: { x: number; y: number };
+  scale: number;
+  rotationRad: number;
 }
 
 interface TrailPoint {
@@ -50,10 +63,14 @@ function RocketModel({
   scrollProgress,
   onScreenPositionUpdate,
   onReady,
+  onDebugUpdate,
+  config,
 }: {
   scrollProgress: React.MutableRefObject<number>;
   onScreenPositionUpdate: (pos: ScreenPosition) => void;
   onReady: () => void;
+  onDebugUpdate?: (info: RocketDebugInfo) => void;
+  config: RocketConfig;
 }) {
   const { scene } = useGLTF("/assets/rocket.glb");
   const rocketRef = useRef<THREE.Group>(null);
@@ -61,6 +78,12 @@ function RocketModel({
   const boosterVectorRef = useRef(new THREE.Vector3());
   const hasInitialized = useRef(false);
   const { camera, size } = useThree();
+
+  // Smoothed values for interpolation
+  const smoothedX = useRef(config.startX);
+  const smoothedY = useRef(config.startY);
+  const smoothedRotation = useRef(0);
+  const smoothedScale = useRef(config.scale);
 
   useFrame((_, delta) => {
     if (!rocketRef.current) return;
@@ -75,47 +98,56 @@ function RocketModel({
     const t = idleTimeRef.current;
     const progress = scrollProgress.current;
 
-    // Parabolic arc
-    const arcOffset = Math.sin(progress * Math.PI) * CONFIG.arcHeight;
+    // Frame-rate independent smoothing factor
+    const posFactor = 1 - Math.pow(1 - config.positionSmoothing, delta * 60);
+    const rotFactor = 1 - Math.pow(1 - config.rotationSmoothing, delta * 60);
 
-    // Interpolate position
-    const x = THREE.MathUtils.lerp(CONFIG.startX, CONFIG.endX, progress);
-    const y = THREE.MathUtils.lerp(CONFIG.startY, CONFIG.endY, progress) + arcOffset;
+    // Parabolic arc
+    const arcOffset = Math.sin(progress * Math.PI) * config.arcHeight;
+
+    // Target position
+    const targetX = THREE.MathUtils.lerp(config.startX, config.endX, progress);
+    const targetY = THREE.MathUtils.lerp(config.startY, config.endY, progress) + arcOffset;
 
     // Idle bounce (reduced when scrolling)
     const idleFactor = 1 - progress * 0.8;
-    const idleBounce = Math.sin(t * CONFIG.bounceSpeed) * CONFIG.bounceAmplitude * idleFactor;
+    const idleBounce = Math.sin(t * config.bounceSpeed) * config.bounceAmplitude * idleFactor;
 
-    const rocketX = x;
-    const rocketY = y + idleBounce;
+    // Smooth position interpolation
+    smoothedX.current = THREE.MathUtils.lerp(smoothedX.current, targetX, posFactor);
+    smoothedY.current = THREE.MathUtils.lerp(smoothedY.current, targetY + idleBounce, posFactor);
 
-    rocketRef.current.position.set(rocketX, rocketY, 0);
+    rocketRef.current.position.set(smoothedX.current, smoothedY.current, 0);
 
     // Rotation calculation
-    const dx = CONFIG.endX - CONFIG.startX;
-    const dy = (CONFIG.endY - CONFIG.startY) + Math.cos(progress * Math.PI) * Math.PI * CONFIG.arcHeight;
+    const dx = config.endX - config.startX;
+    const dy = (config.endY - config.startY) + Math.cos(progress * Math.PI) * Math.PI * config.arcHeight;
     const travelAngle = Math.atan2(dy, dx);
-    const noseAngle = travelAngle - Math.PI / 2 + CONFIG.rotationOffset;
+    const noseAngle = travelAngle - Math.PI / 2 + config.rotationOffset;
 
-    // Idle wobble
-    const idleWobbleX = Math.sin(t * CONFIG.wobbleSpeed * 1.3) * 0.03 * idleFactor;
-    const idleWobbleZ = Math.cos(t * CONFIG.wobbleSpeed) * 0.02 * idleFactor;
+    // Idle wobble (reduced amplitude)
+    const idleWobbleX = Math.sin(t * config.wobbleSpeed * 1.3) * 0.02 * idleFactor;
+    const idleWobbleZ = Math.cos(t * config.wobbleSpeed) * 0.015 * idleFactor;
 
-    const finalRotation = noseAngle + idleWobbleZ;
+    const targetRotation = noseAngle + idleWobbleZ;
 
-    rocketRef.current.rotation.set(idleWobbleX, 0, finalRotation);
+    // Smooth rotation interpolation
+    smoothedRotation.current = THREE.MathUtils.lerp(smoothedRotation.current, targetRotation, rotFactor);
 
-    // Scale
-    const currentScale = CONFIG.scale + Math.sin(progress * Math.PI) * 0.005;
-    rocketRef.current.scale.setScalar(currentScale);
+    rocketRef.current.rotation.set(idleWobbleX, 0, smoothedRotation.current);
 
-    // Calculate booster position in 3D space
-    const boosterDirX = Math.sin(finalRotation);
-    const boosterDirY = -Math.cos(finalRotation);
-    const scaledBoosterOffset = CONFIG.boosterOffset3D * currentScale * 40;
+    // Scale with smoothing
+    const targetScale = config.scale + Math.sin(progress * Math.PI) * 0.005;
+    smoothedScale.current = THREE.MathUtils.lerp(smoothedScale.current, targetScale, posFactor);
+    rocketRef.current.scale.setScalar(smoothedScale.current);
 
-    const boosterX = rocketX + boosterDirX * scaledBoosterOffset;
-    const boosterY = rocketY + boosterDirY * scaledBoosterOffset;
+    // Calculate booster position in 3D space using smoothed values
+    const boosterDirX = Math.sin(smoothedRotation.current);
+    const boosterDirY = -Math.cos(smoothedRotation.current);
+    const scaledBoosterOffset = config.boosterOffset3D * smoothedScale.current * 40;
+
+    const boosterX = smoothedX.current + boosterDirX * scaledBoosterOffset;
+    const boosterY = smoothedY.current + boosterDirY * scaledBoosterOffset;
 
     // Project booster 3D position to screen coordinates (reuse vector)
     boosterVectorRef.current.set(boosterX, boosterY, 0);
@@ -124,13 +156,21 @@ function RocketModel({
     onScreenPositionUpdate({
       x: (boosterVectorRef.current.x * 0.5 + 0.5) * size.width,
       y: (-boosterVectorRef.current.y * 0.5 + 0.5) * size.height,
-      rotation: finalRotation,
+      rotation: smoothedRotation.current,
       visible: boosterVectorRef.current.z < 1,
+    });
+
+    // Send debug info
+    onDebugUpdate?.({
+      world3D: { x: smoothedX.current, y: smoothedY.current, z: 0 },
+      targetWorld: { x: targetX, y: targetY },
+      scale: smoothedScale.current,
+      rotationRad: smoothedRotation.current,
     });
   });
 
   return (
-    <group ref={rocketRef} position={[CONFIG.startX, CONFIG.startY, 0]} scale={CONFIG.scale}>
+    <group ref={rocketRef} position={[config.startX, config.startY, 0]} scale={config.scale}>
       <Center>
         <Clone object={scene} />
       </Center>
@@ -142,10 +182,14 @@ function Scene({
   scrollProgress,
   onScreenPositionUpdate,
   onReady,
+  onDebugUpdate,
+  config,
 }: {
   scrollProgress: React.MutableRefObject<number>;
   onScreenPositionUpdate: (pos: ScreenPosition) => void;
   onReady: () => void;
+  onDebugUpdate?: (info: RocketDebugInfo) => void;
+  config: RocketConfig;
 }) {
   const { camera } = useThree();
 
@@ -159,7 +203,13 @@ function Scene({
       <ambientLight intensity={0.8} />
       <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
       <directionalLight position={[0, -3, 2]} intensity={0.5} color="#e8f0ff" />
-      <RocketModel scrollProgress={scrollProgress} onScreenPositionUpdate={onScreenPositionUpdate} onReady={onReady} />
+      <RocketModel
+        scrollProgress={scrollProgress}
+        onScreenPositionUpdate={onScreenPositionUpdate}
+        onReady={onReady}
+        onDebugUpdate={onDebugUpdate}
+        config={config}
+      />
     </>
   );
 }
@@ -291,10 +341,12 @@ function BoosterFlame({
   screenPos,
   scrollProgress,
   trails,
+  config,
 }: {
   screenPos: ScreenPosition;
   scrollProgress: number;
   trails: TrailPoint[];
+  config: RocketConfig;
 }) {
   if (!screenPos.visible) return null;
 
@@ -302,10 +354,10 @@ function BoosterFlame({
   const idleIntensity = 1 - movementIntensity;
 
   // Dynamic flame size
-  const baseSize = CONFIG.flameSize * (1 + scrollProgress * 0.5);
+  const baseSize = config.flameSize * (1 + scrollProgress * 0.5);
   const flameHeight = baseSize * (0.6 + movementIntensity * 1.2);
   const flameWidth = baseSize * (0.4 + movementIntensity * 0.3);
-  const glowSize = CONFIG.flameGlow * (0.7 + movementIntensity * 0.8);
+  const glowSize = config.flameGlow * (0.7 + movementIntensity * 0.8);
 
   // Flame colors
   const coreColor = `rgba(255, ${220 + movementIntensity * 35}, ${150 + idleIntensity * 50}, 0.95)`;
@@ -426,22 +478,294 @@ function BoosterFlame({
   );
 }
 
+function RocketDebugOverlay({
+  screenPos,
+  scrollProgress,
+  debugInfo,
+  pathPoints,
+  config,
+}: {
+  screenPos: ScreenPosition;
+  scrollProgress: number;
+  debugInfo: RocketDebugInfo | null;
+  pathPoints: DebugPathPoint[];
+  config: RocketConfig;
+}) {
+  const rotationDeg = (screenPos.rotation * 180) / Math.PI;
+
+  return (
+    <div className="fixed inset-0 z-[100] pointer-events-none">
+      {/* Path trace visualization */}
+      <svg className="absolute inset-0 w-full h-full">
+        {/* Full theoretical path */}
+        <path
+          d={(() => {
+            const points: string[] = [];
+            for (let p = 0; p <= 1; p += 0.02) {
+              const arcOffset = Math.sin(p * Math.PI) * config.arcHeight;
+              const x = config.startX + (config.endX - config.startX) * p;
+              const y = config.startY + (config.endY - config.startY) * p + arcOffset;
+              // Convert 3D coords to approximate screen coords (assuming centered camera at z=10, fov=45)
+              const screenX = (x / 10) * (window.innerHeight / 2) + window.innerWidth / 2;
+              const screenY = (-y / 10) * (window.innerHeight / 2) + window.innerHeight / 2;
+              points.push(`${points.length === 0 ? "M" : "L"} ${screenX} ${screenY}`);
+            }
+            return points.join(" ");
+          })()}
+          fill="none"
+          stroke="rgba(100, 200, 255, 0.3)"
+          strokeWidth="2"
+          strokeDasharray="8 4"
+        />
+
+        {/* Actual traced path */}
+        {pathPoints.length > 1 && (
+          <path
+            d={pathPoints
+              .map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x} ${pt.y}`)
+              .join(" ")}
+            fill="none"
+            stroke="rgba(255, 200, 50, 0.8)"
+            strokeWidth="3"
+          />
+        )}
+
+        {/* Path points */}
+        {pathPoints.map((pt, i) => (
+          <circle
+            key={i}
+            cx={pt.x}
+            cy={pt.y}
+            r={3}
+            fill={`hsl(${pt.progress * 120}, 100%, 50%)`}
+          />
+        ))}
+
+        {/* Current position marker */}
+        {screenPos.visible && (
+          <>
+            {/* Crosshair */}
+            <line
+              x1={screenPos.x - 20}
+              y1={screenPos.y}
+              x2={screenPos.x + 20}
+              y2={screenPos.y}
+              stroke="rgba(255, 100, 100, 0.8)"
+              strokeWidth="2"
+            />
+            <line
+              x1={screenPos.x}
+              y1={screenPos.y - 20}
+              x2={screenPos.x}
+              y2={screenPos.y + 20}
+              stroke="rgba(255, 100, 100, 0.8)"
+              strokeWidth="2"
+            />
+            {/* Direction indicator */}
+            <line
+              x1={screenPos.x}
+              y1={screenPos.y}
+              x2={screenPos.x + Math.sin(-screenPos.rotation) * 50}
+              y2={screenPos.y - Math.cos(-screenPos.rotation) * 50}
+              stroke="rgba(100, 255, 100, 0.9)"
+              strokeWidth="3"
+              markerEnd="url(#arrowhead)"
+            />
+            <defs>
+              <marker
+                id="arrowhead"
+                markerWidth="10"
+                markerHeight="7"
+                refX="9"
+                refY="3.5"
+                orient="auto"
+              >
+                <polygon points="0 0, 10 3.5, 0 7" fill="rgba(100, 255, 100, 0.9)" />
+              </marker>
+            </defs>
+          </>
+        )}
+
+        {/* Start and end markers */}
+        <circle
+          cx={(config.startX / 10) * (window.innerHeight / 2) + window.innerWidth / 2}
+          cy={(-config.startY / 10) * (window.innerHeight / 2) + window.innerHeight / 2}
+          r={8}
+          fill="none"
+          stroke="rgba(100, 255, 100, 0.6)"
+          strokeWidth="2"
+        />
+        <text
+          x={(config.startX / 10) * (window.innerHeight / 2) + window.innerWidth / 2 + 15}
+          y={(-config.startY / 10) * (window.innerHeight / 2) + window.innerHeight / 2}
+          fill="rgba(100, 255, 100, 0.8)"
+          fontSize="12"
+        >
+          START
+        </text>
+        <circle
+          cx={(config.endX / 10) * (window.innerHeight / 2) + window.innerWidth / 2}
+          cy={(-config.endY / 10) * (window.innerHeight / 2) + window.innerHeight / 2}
+          r={8}
+          fill="none"
+          stroke="rgba(255, 100, 100, 0.6)"
+          strokeWidth="2"
+        />
+        <text
+          x={(config.endX / 10) * (window.innerHeight / 2) + window.innerWidth / 2 + 15}
+          y={(-config.endY / 10) * (window.innerHeight / 2) + window.innerHeight / 2}
+          fill="rgba(255, 100, 100, 0.8)"
+          fontSize="12"
+        >
+          END
+        </text>
+      </svg>
+
+      {/* Debug info panel */}
+      <div
+        className="absolute top-4 right-4 bg-black/80 text-white p-4 rounded-lg font-mono text-xs pointer-events-auto"
+        style={{ minWidth: 280 }}
+      >
+        <div className="text-yellow-400 font-bold mb-2 text-sm border-b border-yellow-400/30 pb-1">
+          ROCKET DEBUG
+        </div>
+
+        <div className="space-y-2">
+          <div>
+            <span className="text-gray-400">Scroll Progress:</span>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-2 bg-gray-700 rounded overflow-hidden">
+                <div
+                  className="h-full bg-yellow-400 transition-all"
+                  style={{ width: `${scrollProgress * 100}%` }}
+                />
+              </div>
+              <span className="text-yellow-400 w-16 text-right">
+                {(scrollProgress * 100).toFixed(1)}%
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <div>
+              <span className="text-gray-400">Screen X:</span>
+              <span className="text-cyan-400 ml-1">{screenPos.x.toFixed(1)}px</span>
+            </div>
+            <div>
+              <span className="text-gray-400">Screen Y:</span>
+              <span className="text-cyan-400 ml-1">{screenPos.y.toFixed(1)}px</span>
+            </div>
+          </div>
+
+          {debugInfo && (
+            <>
+              <div className="border-t border-gray-600 pt-2 mt-2">
+                <div className="text-gray-400 mb-1">3D World Position:</div>
+                <div className="grid grid-cols-3 gap-1 text-center">
+                  <div>
+                    <span className="text-gray-500">X</span>
+                    <div className="text-green-400">{debugInfo.world3D.x.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Y</span>
+                    <div className="text-green-400">{debugInfo.world3D.y.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Z</span>
+                    <div className="text-green-400">{debugInfo.world3D.z.toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-gray-400">Target Position:</span>
+                <span className="text-orange-400 ml-1">
+                  ({debugInfo.targetWorld.x.toFixed(2)}, {debugInfo.targetWorld.y.toFixed(2)})
+                </span>
+              </div>
+
+              <div>
+                <span className="text-gray-400">Scale:</span>
+                <span className="text-purple-400 ml-1">{debugInfo.scale.toFixed(4)}</span>
+              </div>
+            </>
+          )}
+
+          <div className="border-t border-gray-600 pt-2 mt-2">
+            <div className="text-gray-400 mb-1">Rotation:</div>
+            <div className="flex items-center gap-2">
+              <div
+                className="w-8 h-8 border-2 border-green-400 rounded-full relative"
+              >
+                <div
+                  className="absolute w-1 h-4 bg-green-400 left-1/2 top-0 origin-bottom"
+                  style={{
+                    transform: `translateX(-50%) rotate(${-rotationDeg}deg)`,
+                  }}
+                />
+              </div>
+              <div>
+                <div>
+                  <span className="text-gray-500">Deg:</span>
+                  <span className="text-green-400 ml-1">{rotationDeg.toFixed(1)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Rad:</span>
+                  <span className="text-green-400 ml-1">{screenPos.rotation.toFixed(3)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-600 pt-2 mt-2 text-gray-500">
+            <div>Visible: <span className={screenPos.visible ? "text-green-400" : "text-red-400"}>{screenPos.visible ? "YES" : "NO"}</span></div>
+            <div>Path Points: <span className="text-cyan-400">{pathPoints.length}</span></div>
+          </div>
+        </div>
+
+        <div className="mt-3 pt-2 border-t border-gray-600 text-gray-500 text-[10px]">
+          Press <kbd className="bg-gray-700 px-1 rounded">D</kbd> to toggle debug
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Rocket3D() {
   const scrollProgressRef = useRef(0);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [screenPos, setScreenPos] = useState<ScreenPosition>({ x: 0, y: 0, rotation: 0, visible: false });
   const [trails, setTrails] = useState<TrailPoint[]>([]);
   const [isReady, setIsReady] = useState(false);
-  const [shouldMount, setShouldMount] = useState(false);
   const trailIdRef = useRef(0);
   const lastStateUpdateRef = useRef(0);
   const hasSignaledReady = useRef(false);
+
+  // Config state
+  const [config, setConfig] = useState<RocketConfig>(DEFAULT_CONFIG);
+  const configRef = useRef(config);
+  configRef.current = config;
+
+  // Debug state
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<RocketDebugInfo | null>(null);
+  const [debugPathPoints, setDebugPathPoints] = useState<DebugPathPoint[]>([]);
+  const lastDebugProgressRef = useRef(-1);
 
   // Use refs to access current values in the interval without adding dependencies
   const screenPosRef = useRef(screenPos);
   const scrollProgressValRef = useRef(scrollProgress);
   screenPosRef.current = screenPos;
   scrollProgressValRef.current = scrollProgress;
+
+  // Config change handlers
+  const handleConfigChange = useCallback((key: keyof RocketConfig, value: number) => {
+    setConfig((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setConfig(DEFAULT_CONFIG);
+  }, []);
 
   const handleReady = useCallback(() => {
     setIsReady(true);
@@ -451,37 +775,41 @@ export default function Rocket3D() {
     }
   }, []);
 
-  // Mount/unmount detection - wider range than animation
+  // Debug keyboard toggle
   useEffect(() => {
-    const mountTrigger = ScrollTrigger.create({
-      trigger: "#moon-section",
-      start: `top bottom+=${window.innerHeight * MOUNT_BUFFER}`,
-      end: `top top-=${window.innerHeight * UNMOUNT_BUFFER}`,
-      onEnter: () => setShouldMount(true),
-      onLeave: () => {
-        setShouldMount(false);
-        setTrails([]); // Clear trails when unmounting
-      },
-      onEnterBack: () => setShouldMount(true),
-      onLeaveBack: () => {
-        setShouldMount(false);
-        setTrails([]);
-      },
-    });
-
-    // Check initial position - mount if already in range
-    const moonSection = document.getElementById("moon-section");
-    if (moonSection) {
-      const rect = moonSection.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const startThreshold = viewportHeight * (1 + MOUNT_BUFFER);
-      const endThreshold = -viewportHeight * UNMOUNT_BUFFER;
-      if (rect.top < startThreshold && rect.top > endThreshold) {
-        setShouldMount(true);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "d" || e.key === "D") {
+        setShowDebug((prev) => !prev);
       }
-    }
+      // Clear path with 'c'
+      if ((e.key === "c" || e.key === "C") && showDebug) {
+        setDebugPathPoints([]);
+        lastDebugProgressRef.current = -1;
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showDebug]);
 
-    return () => mountTrigger.kill();
+  // Debug info handler - records path points at progress intervals
+  const handleDebugUpdate = useCallback((info: RocketDebugInfo) => {
+    setDebugInfo(info);
+
+    // Record path point every 5% progress
+    const progressStep = Math.floor(scrollProgressRef.current * 20);
+    if (progressStep !== lastDebugProgressRef.current && scrollProgressRef.current > 0) {
+      lastDebugProgressRef.current = progressStep;
+      setDebugPathPoints((prev) => {
+        // Avoid duplicates at same progress
+        if (prev.length > 0 && Math.abs(prev[prev.length - 1].progress - scrollProgressRef.current) < 0.03) {
+          return prev;
+        }
+        // Convert 3D to screen coords
+        const screenX = (info.world3D.x / 10) * (window.innerHeight / 2) + window.innerWidth / 2;
+        const screenY = (-info.world3D.y / 10) * (window.innerHeight / 2) + window.innerHeight / 2;
+        return [...prev, { x: screenX, y: screenY, progress: scrollProgressRef.current }];
+      });
+    }
   }, []);
 
   // Single interval for trail creation and fading with idle detection
@@ -516,7 +844,8 @@ export default function Rocket3D() {
           if (now - lastTrailTime > 40) {
             lastTrailTime = now;
 
-            const trailOffsetDist = CONFIG.flameSize * (-1 + progress);
+            const currentConfig = configRef.current;
+            const trailOffsetDist = currentConfig.flameSize * (-1 + progress);
             const exhaustAngle = -pos.rotation;
             const trailX = pos.x + Math.sin(exhaustAngle) * trailOffsetDist;
             const trailY = pos.y - Math.cos(exhaustAngle) * trailOffsetDist;
@@ -528,7 +857,7 @@ export default function Rocket3D() {
                 x: trailX,
                 y: trailY,
                 opacity: 0.5 + progress * 0.3,
-                size: CONFIG.flameSize * (0.3 + progress * 0.4),
+                size: currentConfig.flameSize * (0.3 + progress * 0.4),
               },
             ];
           }
@@ -560,7 +889,7 @@ export default function Rocket3D() {
       trigger: "#moon-section",
       start: "top bottom",
       end: "top top-=30%",
-      scrub: 1.2,
+      scrub: 1.8,
       onUpdate: (self) => {
         scrollProgressRef.current = self.progress;
         // Throttle React state updates to ~60fps to prevent lag from touchpad scroll events
@@ -588,11 +917,6 @@ export default function Rocket3D() {
     setScreenPos(pos);
   }, []);
 
-  // Don't render anything if not in active zone
-  if (!shouldMount) {
-    return null;
-  }
-
   return (
     <>
       {/* Shadow layer - renders on moon surface */}
@@ -610,7 +934,13 @@ export default function Rocket3D() {
         aria-hidden="true"
       >
         <Canvas gl={{ antialias: true, alpha: true }} dpr={[1, 2]} camera={{ fov: 45, near: 0.1, far: 100 }}>
-          <Scene scrollProgress={scrollProgressRef} onScreenPositionUpdate={handleScreenPositionUpdate} onReady={handleReady} />
+          <Scene
+            scrollProgress={scrollProgressRef}
+            onScreenPositionUpdate={handleScreenPositionUpdate}
+            onReady={handleReady}
+            onDebugUpdate={showDebug ? handleDebugUpdate : undefined}
+            config={config}
+          />
         </Canvas>
       </div>
 
@@ -619,8 +949,28 @@ export default function Rocket3D() {
         style={{ opacity: isReady ? 1 : 0 }}
         aria-hidden="true"
       >
-        <BoosterFlame screenPos={screenPos} scrollProgress={scrollProgress} trails={trails} />
+        <BoosterFlame screenPos={screenPos} scrollProgress={scrollProgress} trails={trails} config={config} />
       </div>
+
+      {/* Debug overlay */}
+      {showDebug && (
+        <RocketDebugOverlay
+          screenPos={screenPos}
+          scrollProgress={scrollProgress}
+          debugInfo={debugInfo}
+          pathPoints={debugPathPoints}
+          config={config}
+        />
+      )}
+
+      {/* Rocket Debug Panel (dev only) */}
+      {process.env.NODE_ENV === "development" && (
+        <RocketDebugPanel
+          config={config}
+          onConfigChange={handleConfigChange}
+          onReset={handleReset}
+        />
+      )}
     </>
   );
 }

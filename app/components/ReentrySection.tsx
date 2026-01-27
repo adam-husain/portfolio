@@ -90,8 +90,10 @@ function AsteroidModel({
     y: Math.random() * Math.PI * 2,
     z: Math.random() * Math.PI * 2,
   });
-  // Smoothed rotation values
+  // Smoothed values for position and rotation
+  const smoothedPosition = useRef({ x: path.startX, y: path.startY });
   const smoothedRotation = useRef({ x: 0, y: 0, z: 0 });
+  const POSITION_SMOOTHING = 0.06;
   const ROTATION_SMOOTHING = 0.08;
 
   useFrame((_, delta) => {
@@ -104,11 +106,16 @@ function AsteroidModel({
     // Easing for smooth movement
     const eased = 1 - Math.pow(1 - Math.min(1, delayedProgress), 2);
 
-    // Simple linear interpolation from start to end
-    const x = THREE.MathUtils.lerp(path.startX, path.endX, eased);
-    const y = THREE.MathUtils.lerp(path.startY, path.endY, eased);
+    // Target position from scroll progress
+    const targetX = THREE.MathUtils.lerp(path.startX, path.endX, eased);
+    const targetY = THREE.MathUtils.lerp(path.startY, path.endY, eased);
 
-    asteroidRef.current.position.set(x, y, 0);
+    // Smooth interpolation towards target position
+    const posSmoothFactor = 1 - Math.pow(1 - POSITION_SMOOTHING, delta * 60);
+    smoothedPosition.current.x = THREE.MathUtils.lerp(smoothedPosition.current.x, targetX, posSmoothFactor);
+    smoothedPosition.current.y = THREE.MathUtils.lerp(smoothedPosition.current.y, targetY, posSmoothFactor);
+
+    asteroidRef.current.position.set(smoothedPosition.current.x, smoothedPosition.current.y, 0);
     asteroidRef.current.scale.setScalar(path.scale);
 
     // Scroll-driven tumbling rotation with smoothing
@@ -119,10 +126,10 @@ function AsteroidModel({
     const targetRotZ = ro.z + eased * Math.PI * 2 * rm.z;
 
     // Smooth interpolation towards target rotation
-    const smoothFactor = 1 - Math.pow(1 - ROTATION_SMOOTHING, delta * 60);
-    smoothedRotation.current.x = THREE.MathUtils.lerp(smoothedRotation.current.x, targetRotX, smoothFactor);
-    smoothedRotation.current.y = THREE.MathUtils.lerp(smoothedRotation.current.y, targetRotY, smoothFactor);
-    smoothedRotation.current.z = THREE.MathUtils.lerp(smoothedRotation.current.z, targetRotZ, smoothFactor);
+    const rotSmoothFactor = 1 - Math.pow(1 - ROTATION_SMOOTHING, delta * 60);
+    smoothedRotation.current.x = THREE.MathUtils.lerp(smoothedRotation.current.x, targetRotX, rotSmoothFactor);
+    smoothedRotation.current.y = THREE.MathUtils.lerp(smoothedRotation.current.y, targetRotY, rotSmoothFactor);
+    smoothedRotation.current.z = THREE.MathUtils.lerp(smoothedRotation.current.z, targetRotZ, rotSmoothFactor);
 
     asteroidRef.current.rotation.set(
       smoothedRotation.current.x,
@@ -130,8 +137,8 @@ function AsteroidModel({
       smoothedRotation.current.z
     );
 
-    // Project to screen coordinates for flame effect
-    positionRef.current.set(x, y, 0);
+    // Project smoothed position to screen coordinates for flame effect
+    positionRef.current.set(smoothedPosition.current.x, smoothedPosition.current.y, 0);
     positionRef.current.project(camera);
 
     const screenX = (positionRef.current.x * 0.5 + 0.5) * size.width;
