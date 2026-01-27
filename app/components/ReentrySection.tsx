@@ -28,8 +28,8 @@ const DEFAULT_CONFIG: ReentryConfig = {
 
   // Balloon (starts after asteroids finish ~0.5 progress)
   balloonScale: 1.8,
-  balloonStartX: -8,
-  balloonStartY: -6,
+  balloonStartX: -10.8,
+  balloonStartY: -2.5,
   balloonEndX: -4,
   balloonEndY: 0,
   balloonWobbleSpeed: 1.5,
