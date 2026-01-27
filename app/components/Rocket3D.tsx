@@ -559,8 +559,8 @@ export default function Rocket3D() {
     const trigger = ScrollTrigger.create({
       trigger: "#moon-section",
       start: "top bottom",
-      end: "top top",
-      scrub: 0.5,
+      end: "top top-=30%",
+      scrub: 1.2,
       onUpdate: (self) => {
         scrollProgressRef.current = self.progress;
         // Throttle React state updates to ~60fps to prevent lag from touchpad scroll events
@@ -570,7 +570,16 @@ export default function Rocket3D() {
           setScrollProgress(self.progress);
         }
       },
+      onRefresh: (self) => {
+        // Sync progress immediately when trigger is refreshed (e.g., on remount)
+        scrollProgressRef.current = self.progress;
+        setScrollProgress(self.progress);
+      },
     });
+
+    // Immediately sync to current scroll position on mount
+    scrollProgressRef.current = trigger.progress;
+    setScrollProgress(trigger.progress);
 
     return () => trigger.kill();
   }, []);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect } from "react";
 import { Canvas, useFrame, useThree, useLoader } from "@react-three/fiber";
 import { Center } from "@react-three/drei";
 import * as THREE from "three";
@@ -9,18 +9,16 @@ import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { useControls, Leva } from "leva";
+import { updateSection3Progress, useScrollProgress } from "@/app/lib/scrollProgress";
+import { SECTION3_TIMING, FADE_TIMING, calculateFadeOut, mapRange } from "@/app/lib/animationTiming";
 
 gsap.registerPlugin(ScrollTrigger);
 
 let ktx2Loader: KTX2Loader | null = null;
 
-// ============================================================
-// MODEL SELECTION - Change this to switch between models
-// ============================================================
+// Change this to switch between models
 const ACTIVE_MODEL: "satellite" | "endurance" = "endurance";
 
-// Satellite model config (original)
 const SATELLITE_CONFIG = {
   model: "/assets/satellite.glb",
   scaleStart: 1.5,
@@ -32,7 +30,6 @@ const SATELLITE_CONFIG = {
   smoothing: 0.1,
   textStart: 0.2,
   textEnd: 0.5,
-  // Transform
   scaleMultiplier: 1,
   startRotX: 0.358407346410207,
   startRotY: 0,
@@ -40,18 +37,13 @@ const SATELLITE_CONFIG = {
   endRotX: 0.358407346410207,
   endRotY: 5.3,
   endRotZ: 0,
-  // Lighting
   ambientIntensity: 0.6,
   directionalIntensity: 1.2,
   pointIntensity: 0.3,
-  // Material
-  opacity: 1,
   metalness: 0.5,
   roughness: 0.5,
-  envMapIntensity: 1,
 };
 
-// Endurance model config (from debug sliders)
 const ENDURANCE_CONFIG = {
   model: "/assets/endurance-optimized.glb",
   scaleStart: 1.5,
@@ -63,7 +55,6 @@ const ENDURANCE_CONFIG = {
   smoothing: 0.1,
   textStart: 0.2,
   textEnd: 0.5,
-  // Transform
   scaleMultiplier: 0.1,
   startRotX: -0.11,
   startRotY: 0,
@@ -71,23 +62,21 @@ const ENDURANCE_CONFIG = {
   endRotX: 0.5,
   endRotY: -2.0,
   endRotZ: -1.5,
-  // Lighting
   ambientIntensity: 0.3,
   directionalIntensity: 1.1,
   pointIntensity: 0.4,
-  // Material
-  opacity: 1,
   metalness: 0.6,
   roughness: 0.65,
-  envMapIntensity: 1,
 };
 
 const CONFIG = ACTIVE_MODEL === "endurance" ? ENDURANCE_CONFIG : SATELLITE_CONFIG;
 
 function SatelliteModel({
   scrollProgress,
+  section4Progress,
 }: {
   scrollProgress: React.MutableRefObject<number>;
+  section4Progress: React.MutableRefObject<number>;
 }) {
   const { gl, camera } = useThree();
   const satelliteRef = useRef<THREE.Group>(null);
@@ -98,42 +87,6 @@ function SatelliteModel({
     rotX: 0,
     rotY: 0,
     rotZ: 0,
-  });
-
-  // Debug controls - Transform
-  const {
-    scaleMultiplier,
-    startPosX, startPosY, endPosX, endPosY,
-    startRotX, startRotY, startRotZ,
-    endRotX, endRotY, endRotZ
-  } = useControls("Transform", {
-    scaleMultiplier: { value: CONFIG.scaleMultiplier, min: 0.01, max: 3, step: 0.01 },
-    startPosX: { value: CONFIG.startX, min: -10, max: 10, step: 0.1 },
-    startPosY: { value: CONFIG.startY, min: -10, max: 10, step: 0.1 },
-    endPosX: { value: CONFIG.endX, min: -10, max: 10, step: 0.1 },
-    endPosY: { value: CONFIG.endY, min: -10, max: 10, step: 0.1 },
-    startRotX: { value: CONFIG.startRotX, min: -Math.PI, max: Math.PI, step: 0.01 },
-    startRotY: { value: CONFIG.startRotY, min: -Math.PI * 2, max: Math.PI * 2, step: 0.01 },
-    startRotZ: { value: CONFIG.startRotZ, min: -Math.PI, max: Math.PI, step: 0.01 },
-    endRotX: { value: CONFIG.endRotX, min: -Math.PI, max: Math.PI, step: 0.01 },
-    endRotY: { value: CONFIG.endRotY, min: -Math.PI * 2, max: Math.PI * 2, step: 0.01 },
-    endRotZ: { value: CONFIG.endRotZ, min: -Math.PI, max: Math.PI, step: 0.01 },
-  });
-
-  // Debug controls - Material
-  const { opacity, wireframe, metalness, roughness, envMapIntensity } = useControls("Material", {
-    opacity: { value: CONFIG.opacity, min: 0, max: 1, step: 0.01 },
-    wireframe: false,
-    metalness: { value: CONFIG.metalness, min: 0, max: 1, step: 0.01 },
-    roughness: { value: CONFIG.roughness, min: 0, max: 1, step: 0.01 },
-    envMapIntensity: { value: CONFIG.envMapIntensity, min: 0, max: 3, step: 0.1 },
-  });
-
-  const { colorMap, normalMap, aoMap, emissiveIntensity } = useControls("Textures", {
-    colorMap: true,
-    normalMap: true,
-    aoMap: true,
-    emissiveIntensity: { value: 0, min: 0, max: 2, step: 0.1 },
   });
 
   const gltf = useLoader(GLTFLoader, CONFIG.model, (loader) => {
@@ -148,59 +101,16 @@ function SatelliteModel({
     loader.setMeshoptDecoder(MeshoptDecoder);
   });
 
-  // Store original material properties
-  const originalMaterials = useMemo(() => {
-    const materials = new Map<THREE.Material, {
-      map: THREE.Texture | null;
-      normalMap: THREE.Texture | null;
-      aoMap: THREE.Texture | null;
-      metalness: number;
-      roughness: number;
-    }>();
-
-    gltf.scene.traverse((child) => {
-      if (child instanceof THREE.Mesh && child.material) {
-        const mat = child.material as THREE.MeshStandardMaterial;
-        if (!materials.has(mat)) {
-          materials.set(mat, {
-            map: mat.map,
-            normalMap: mat.normalMap,
-            aoMap: mat.aoMap,
-            metalness: mat.metalness ?? 0.5,
-            roughness: mat.roughness ?? 0.5,
-          });
-        }
-      }
-    });
-    return materials;
-  }, [gltf.scene]);
-
-  // Apply debug controls to materials
   useEffect(() => {
     gltf.scene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.material) {
         const mat = child.material as THREE.MeshStandardMaterial;
-        const original = originalMaterials.get(mat);
-
-        if (original) {
-          mat.transparent = opacity < 1;
-          mat.opacity = opacity;
-          mat.wireframe = wireframe;
-          mat.metalness = metalness;
-          mat.roughness = roughness;
-          mat.envMapIntensity = envMapIntensity;
-          mat.emissiveIntensity = emissiveIntensity;
-
-          // Toggle texture maps
-          mat.map = colorMap ? original.map : null;
-          mat.normalMap = normalMap ? original.normalMap : null;
-          mat.aoMap = aoMap ? original.aoMap : null;
-
-          mat.needsUpdate = true;
-        }
+        mat.metalness = CONFIG.metalness;
+        mat.roughness = CONFIG.roughness;
+        mat.needsUpdate = true;
       }
     });
-  }, [gltf.scene, originalMaterials, opacity, wireframe, metalness, roughness, envMapIntensity, colorMap, normalMap, aoMap, emissiveIntensity]);
+  }, [gltf.scene]);
 
   useEffect(() => {
     camera.position.set(0, 0, 10);
@@ -212,28 +122,29 @@ function SatelliteModel({
 
     const progress = scrollProgress.current;
 
-    // Ease-in-out
-    const eased =
-      progress < 0.5
-        ? 2 * progress * progress
-        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+    // Custom easing: syncs with moon animation (ends at ~80% scroll progress)
+    // Completes ~95% of animation by progress 0.8, then slows dramatically
+    let eased: number;
+    if (progress < 0.8) {
+      const t = progress / 0.8;
+      const easedT = 1 - Math.pow(1 - t, 3);
+      eased = easedT * 0.95;
+    } else {
+      const t = (progress - 0.8) / 0.2;
+      eased = 0.95 + t * 0.05;
+    }
 
-    // Target values
-    const targetX = THREE.MathUtils.lerp(startPosX, endPosX, eased);
-    const targetY = THREE.MathUtils.lerp(startPosY, endPosY, eased);
-    const targetScale = THREE.MathUtils.lerp(
-      CONFIG.scaleStart,
-      CONFIG.scaleEnd,
-      eased,
-    ) * scaleMultiplier;
-    const targetRotX = THREE.MathUtils.lerp(startRotX, endRotX, eased);
-    const targetRotY = THREE.MathUtils.lerp(startRotY, endRotY, eased);
-    const targetRotZ = THREE.MathUtils.lerp(startRotZ, endRotZ, eased);
+    const targetX = THREE.MathUtils.lerp(CONFIG.startX, CONFIG.endX, eased);
+    const targetY = THREE.MathUtils.lerp(CONFIG.startY, CONFIG.endY, eased);
+    const targetScale =
+      THREE.MathUtils.lerp(CONFIG.scaleStart, CONFIG.scaleEnd, eased) *
+      CONFIG.scaleMultiplier;
+    const targetRotX = THREE.MathUtils.lerp(CONFIG.startRotX, CONFIG.endRotX, eased);
+    const targetRotY = THREE.MathUtils.lerp(CONFIG.startRotY, CONFIG.endRotY, eased);
+    const targetRotZ = THREE.MathUtils.lerp(CONFIG.startRotZ, CONFIG.endRotZ, eased);
 
-    // Frame-rate independent smoothing
     const smoothFactor = 1 - Math.pow(1 - CONFIG.smoothing, delta * 60);
 
-    // Smooth interpolation
     const sv = smoothedValues.current;
     sv.x = THREE.MathUtils.lerp(sv.x, targetX, smoothFactor);
     sv.y = THREE.MathUtils.lerp(sv.y, targetY, smoothFactor);
@@ -242,10 +153,23 @@ function SatelliteModel({
     sv.rotY = THREE.MathUtils.lerp(sv.rotY, targetRotY, smoothFactor);
     sv.rotZ = THREE.MathUtils.lerp(sv.rotZ, targetRotZ, smoothFactor);
 
-    satelliteRef.current.position.set(sv.x, sv.y, 0);
+    // Calculate fade-out based on section 4 progress
+    const s4Progress = section4Progress.current;
+    const fadeOut = calculateFadeOut(
+      s4Progress,
+      SECTION3_TIMING.fadeOut.start,
+      SECTION3_TIMING.fadeOut.end
+    );
+
+    // Apply fade-out: scale down and move off-screen
+    const fadeScale = sv.scale * (0.5 + fadeOut * 0.5); // Scale down to 50% when faded
+    const fadeX = sv.x + (1 - fadeOut) * -5; // Move left when fading
+    const fadeY = sv.y + (1 - fadeOut) * -3; // Move down when fading
+
+    satelliteRef.current.position.set(fadeX, fadeY, 0);
     satelliteRef.current.rotation.set(sv.rotX, sv.rotY, sv.rotZ);
-    satelliteRef.current.scale.setScalar(sv.scale);
-    satelliteRef.current.visible = progress > 0.02;
+    satelliteRef.current.scale.setScalar(fadeScale);
+    satelliteRef.current.visible = progress > 0.02 && fadeOut > 0.01;
   });
 
   return (
@@ -263,34 +187,41 @@ function SatelliteModel({
 
 function Scene({
   scrollProgress,
+  section4Progress,
 }: {
   scrollProgress: React.MutableRefObject<number>;
+  section4Progress: React.MutableRefObject<number>;
 }) {
-  const { ambientIntensity, directionalIntensity, pointIntensity } = useControls("Lighting", {
-    ambientIntensity: { value: CONFIG.ambientIntensity, min: 0, max: 2, step: 0.1 },
-    directionalIntensity: { value: CONFIG.directionalIntensity, min: 0, max: 3, step: 0.1 },
-    pointIntensity: { value: CONFIG.pointIntensity, min: 0, max: 2, step: 0.1 },
-  });
-
   return (
     <>
-      <ambientLight intensity={ambientIntensity} />
-      <directionalLight position={[5, 5, 5]} intensity={directionalIntensity} color="#ffffff" />
+      <ambientLight intensity={CONFIG.ambientIntensity} />
       <directionalLight
-        position={[-3, -2, 3]}
-        intensity={0.4}
-        color="#a0c4ff"
+        position={[5, 5, 5]}
+        intensity={CONFIG.directionalIntensity}
+        color="#ffffff"
       />
-      <pointLight position={[0, 0, 5]} intensity={pointIntensity} color="#ffd166" />
-      <SatelliteModel scrollProgress={scrollProgress} />
+      <directionalLight position={[-3, -2, 3]} intensity={0.4} color="#a0c4ff" />
+      <pointLight position={[0, 0, 5]} intensity={CONFIG.pointIntensity} color="#ffd166" />
+      <SatelliteModel scrollProgress={scrollProgress} section4Progress={section4Progress} />
     </>
   );
 }
 
 export default function Satellite3D() {
   const scrollProgressRef = useRef(0);
-  const textStateRef = useRef({ opacity: 0, y: 40 });
+  const section4ProgressRef = useRef(0);
   const textRef = useRef<HTMLDivElement>(null);
+  const scrollProgress = useScrollProgress();
+
+  // Update section4 progress ref for 3D scene
+  section4ProgressRef.current = scrollProgress.section4;
+
+  // Get section4 progress for fade-out calculation (text)
+  const section4FadeOut = calculateFadeOut(
+    scrollProgress.section4,
+    FADE_TIMING.section3TextFadeOut.start,
+    FADE_TIMING.section3TextFadeOut.end
+  );
 
   useEffect(() => {
     const trigger = ScrollTrigger.create({
@@ -300,35 +231,39 @@ export default function Satellite3D() {
       scrub: true,
       onUpdate: (self) => {
         scrollProgressRef.current = self.progress;
-
-        // Calculate text animation
-        const textRange = CONFIG.textEnd - CONFIG.textStart;
-        const textProgress = Math.max(
-          0,
-          Math.min(1, (self.progress - CONFIG.textStart) / textRange),
-        );
-        const easedTextProgress = 1 - Math.pow(1 - textProgress, 2);
-
-        textStateRef.current.opacity = easedTextProgress;
-        textStateRef.current.y = (1 - easedTextProgress) * 40;
-
-        // Update text element directly
-        if (textRef.current) {
-          textRef.current.style.opacity = String(easedTextProgress);
-          textRef.current.style.transform = `translateY(calc(-50% + ${textStateRef.current.y}px))`;
-        }
+        updateSection3Progress(self.progress);
+      },
+      onRefresh: (self) => {
+        // Sync progress immediately when trigger is refreshed
+        scrollProgressRef.current = self.progress;
+        updateSection3Progress(self.progress);
       },
     });
+
+    // Immediately sync to current scroll position on mount
+    scrollProgressRef.current = trigger.progress;
+    updateSection3Progress(trigger.progress);
 
     return () => trigger.kill();
   }, []);
 
+  // Calculate section3 text fade-in progress
+  const section3Progress = scrollProgress.section3;
+  const textRange = CONFIG.textEnd - CONFIG.textStart;
+  const textProgress = Math.max(0, Math.min(1, (section3Progress - CONFIG.textStart) / textRange));
+  const easedTextProgress = 1 - Math.pow(1 - textProgress, 2);
+
+  // Update text opacity based on both section3 fade-in and section4 fade-out
+  useEffect(() => {
+    if (textRef.current) {
+      const finalOpacity = easedTextProgress * section4FadeOut;
+      textRef.current.style.opacity = String(finalOpacity);
+      textRef.current.style.transform = `translateY(calc(-50% + ${(1 - easedTextProgress) * 40}px))`;
+    }
+  }, [easedTextProgress, section4FadeOut]);
+
   return (
     <>
-      {/* Leva Debug Panel */}
-      <Leva collapsed={false} oneLineLabels={false} />
-
-      {/* 3D Satellite Canvas */}
       <div
         className="fixed inset-0 z-[22] pointer-events-none satellite-canvas"
         aria-hidden="true"
@@ -338,11 +273,10 @@ export default function Satellite3D() {
           dpr={[1, 2]}
           camera={{ fov: 45, near: 0.1, far: 100 }}
         >
-          <Scene scrollProgress={scrollProgressRef} />
+          <Scene scrollProgress={scrollProgressRef} section4Progress={section4ProgressRef} />
         </Canvas>
       </div>
 
-      {/* Embossed text overlay */}
       <div
         ref={textRef}
         className="fixed top-1/2 right-8 md:right-16 lg:right-24 -translate-y-1/2 text-white text-right z-[24] pointer-events-none"

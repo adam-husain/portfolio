@@ -2,6 +2,7 @@ import AnimatedName from "./components/AnimatedName";
 import Rocket3D from "./components/Rocket3D";
 import MoonReveal from "./components/MoonReveal";
 import Satellite3D from "./components/Satellite3D";
+import ReentrySection from "./components/ReentrySection";
 import MyFace from "./components/MyFace";
 import { siteConfig } from "@/lib/site";
 
@@ -68,7 +69,7 @@ export default function Home() {
       {/* Moon section */}
       <section
         id="moon-section"
-        className="relative min-h-screen flex items-center justify-center overflow-hidden"
+        className="relative min-h-[150vh] flex items-center justify-center overflow-hidden"
       ></section>
 
       {/* 3D Satellite flying across section 3 */}
@@ -79,6 +80,9 @@ export default function Home() {
         id="satellite-section"
         className="relative h-[150vh] flex items-start justify-center overflow-hidden"
       ></section>
+
+      {/* Section 4: Atmospheric Re-entry with asteroids and hot air balloon */}
+      <ReentrySection />
 
       {/* Noscript fallback for SEO */}
       <noscript>

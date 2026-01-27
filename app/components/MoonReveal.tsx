@@ -4,22 +4,24 @@ import { useEffect, useRef } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useScrollProgress } from "@/app/lib/scrollProgress";
+import { SECTION2_TIMING, SECTION3_TIMING, calculateFadeOut } from "@/app/lib/animationTiming";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// Moon configuration
+// Moon configuration (using timing config)
 const CONFIG = {
   section2: {
-    startYPercent: 55,
-    endYPercent: 50,
-    startBrightness: 1,
-    endBrightness: 0.5,
+    startYPercent: SECTION2_TIMING.moon.startYPercent,
+    endYPercent: SECTION2_TIMING.moon.endYPercent,
+    startBrightness: SECTION2_TIMING.moon.startBrightness,
+    endBrightness: SECTION2_TIMING.moon.endBrightness,
   },
   section3: {
-    endScale: 0.19,
-    endLeftVw: 5,
-    endTopVh: 10,
-    endRotation: 60,
+    endScale: SECTION3_TIMING.moon.endScale,
+    endLeftVw: SECTION3_TIMING.moon.endLeftVw,
+    endTopVh: SECTION3_TIMING.moon.endTopVh,
+    endRotation: SECTION3_TIMING.moon.endRotation,
     triggerEnd: "top 20%",
   },
 };
@@ -36,20 +38,31 @@ export default function MoonReveal() {
 
   // Refs for smooth animation
   const section3ProgressRef = useRef(0);
+  const section4ProgressRef = useRef(0);
   const targetMoonState = useRef({
     left: 0,
     top: 0,
     size: 0,
     rotation: 0,
+    opacity: 1,
   });
   const currentMoonState = useRef({
     left: 0,
     top: 0,
     size: 0,
     rotation: 0,
+    opacity: 1,
   });
   const animationFrameRef = useRef<number | null>(null);
   const isSection3Active = useRef(false);
+
+  // Subscribe to global scroll progress for section 4
+  const scrollProgress = useScrollProgress();
+
+  // Update section4 progress ref for animation loop
+  useEffect(() => {
+    section4ProgressRef.current = scrollProgress.section4;
+  }, [scrollProgress.section4]);
 
   useEffect(() => {
     const mask = maskRef.current;
@@ -84,6 +97,7 @@ export default function MoonReveal() {
       top: initState.centerY,
       size: initState.size,
       rotation: 0,
+      opacity: 1,
     };
     targetMoonState.current = { ...currentMoonState.current };
 
@@ -102,21 +116,42 @@ export default function MoonReveal() {
       current.top += (target.top - current.top) * SMOOTH_FACTOR;
       current.size += (target.size - current.size) * SMOOTH_FACTOR;
       current.rotation += (target.rotation - current.rotation) * SMOOTH_FACTOR;
+      current.opacity += (target.opacity - current.opacity) * SMOOTH_FACTOR;
+
+      // Calculate fade-out based on section 4 progress
+      const s4p = section4ProgressRef.current;
+      const fadeOut = calculateFadeOut(s4p, SECTION3_TIMING.fadeOut.start, SECTION3_TIMING.fadeOut.end);
+      target.opacity = fadeOut;
+
+      // Apply fade: move moon further off-screen and scale down
+      const fadeOffsetX = (1 - current.opacity) * -200; // Move left
+      const fadeOffsetY = (1 - current.opacity) * -150; // Move up
+      const fadeScale = 0.5 + current.opacity * 0.5; // Scale from 50% to 100%
 
       // Apply to DOM
-      moon.style.width = `${current.size}px`;
-      moon.style.height = `${current.size}px`;
-      moon.style.left = `${current.left}px`;
-      moon.style.top = `${current.top}px`;
+      const displaySize = current.size * fadeScale;
+      moon.style.width = `${displaySize}px`;
+      moon.style.height = `${displaySize}px`;
+      moon.style.left = `${current.left + fadeOffsetX}px`;
+      moon.style.top = `${current.top + fadeOffsetY}px`;
       moon.style.bottom = "auto";
       moon.style.transform = `translate(-50%, -50%) rotate(${current.rotation}deg)`;
+      moon.style.opacity = String(current.opacity);
 
       // Section 3 moon glow - follows moon position with larger size
-      const glowSize = current.size * 1.8;
+      const glowSize = displaySize * 1.8;
       moonGlow.style.width = `${glowSize}px`;
       moonGlow.style.height = `${glowSize}px`;
-      moonGlow.style.left = `${current.left}px`;
-      moonGlow.style.top = `${current.top}px`;
+      moonGlow.style.left = `${current.left + fadeOffsetX}px`;
+      moonGlow.style.top = `${current.top + fadeOffsetY}px`;
+      moonGlow.style.opacity = String(current.opacity);
+
+      // Hide mask when fully faded
+      if (current.opacity < 0.01) {
+        mask.style.opacity = "0";
+      } else {
+        mask.style.opacity = "1";
+      }
 
       animationFrameRef.current = requestAnimationFrame(animateSmooth);
     };
@@ -150,6 +185,8 @@ export default function MoonReveal() {
           moon.style.top = "auto";
           moon.style.transform = `translateX(-50%) translateY(${yPercent}%) rotate(0deg)`;
           moon.style.filter = `brightness(${brightness})`;
+          moon.style.opacity = "1"; // Reset opacity when in section 2
+          mask.style.opacity = "1";
 
           // Update current state for smooth transition
           const baseSize = getBaseSize();
@@ -158,6 +195,7 @@ export default function MoonReveal() {
             top: window.innerHeight + baseSize * (yPercent / 100 - 0.5),
             size: baseSize,
             rotation: 0,
+            opacity: 1,
           };
           targetMoonState.current = { ...currentMoonState.current };
         }
@@ -171,13 +209,13 @@ export default function MoonReveal() {
           glow.style.opacity = String(easedP);
         }
 
-        // Text: fade out when section 3 progress reaches 0.7
+        // Text: fade out when section 3 progress reaches 0.5
         if (text) {
           const textP = mapRange(p, 0.5, 0.8);
           const easedTextP = 1 - Math.pow(1 - textP, 2);
           const textY = lerp(30, 0, easedTextP);
-          // Fade out when section 3 progress passes 0.7
-          const section3FadeOut = Math.max(0, 1 - mapRange(s3p, 0.5, 0.7));
+          // Fade out when section 3 progress passes 0.5
+          const section3FadeOut = Math.max(0, 1 - mapRange(s3p, 0.5, 0.5));
           const textOpacity = easedTextP * section3FadeOut;
           text.style.opacity = String(Math.max(0, textOpacity));
           text.style.transform = `translateY(${textY}px)`;
@@ -186,10 +224,11 @@ export default function MoonReveal() {
     });
 
     // Section 3 ScrollTrigger - moon moves to top-left with rotation
+    // Starts exactly where section 2 ends for seamless blend
     const trigger2 = ScrollTrigger.create({
-      trigger: "#satellite-section",
-      start: "top bottom",
-      end: CONFIG.section3.triggerEnd,
+      trigger: "#moon-section",
+      start: "top top",
+      end: "bottom top-=20%",
       scrub: true,
       onUpdate: (self) => {
         const p = self.progress;
@@ -200,6 +239,15 @@ export default function MoonReveal() {
           // Show section 2 glow, hide moon glow
           if (glow) glow.classList.remove("opacity-0");
           if (moonGlow) moonGlow.classList.add("opacity-0");
+
+          // Reset moon opacity and state when returning to section 2
+          moon.style.opacity = "1";
+          moonGlow.style.opacity = "0";
+          mask.style.opacity = "1";
+
+          // Reset target and current opacity to fully visible
+          targetMoonState.current.opacity = 1;
+          currentMoonState.current.opacity = 1;
           return;
         }
 
@@ -209,9 +257,9 @@ export default function MoonReveal() {
         if (glow) glow.classList.add("opacity-0");
         if (moonGlow) moonGlow.classList.remove("opacity-0");
 
-        // Fade out text when section 3 progress reaches 0.7
+        // Fade out text when section 3 progress reaches 0.5
         if (text) {
-          const textFadeOut = Math.max(0, 1 - mapRange(p, 0.5, 0.7));
+          const textFadeOut = Math.max(0, 1 - mapRange(p, 0.2, 0.5));
           text.style.opacity = String(textFadeOut);
         }
 
@@ -230,11 +278,13 @@ export default function MoonReveal() {
         const endTop = (CONFIG.section3.endTopVh / 100) * window.innerHeight;
 
         // Set target position for smooth interpolation
+        // Note: opacity is controlled by section 4 progress in the animation loop
         targetMoonState.current = {
           left: lerp(startPos.centerX, endLeft, easedP),
           top: lerp(startPos.centerY, endTop, easedP),
           size: targetSize,
           rotation: lerp(0, CONFIG.section3.endRotation, easedP),
+          opacity: targetMoonState.current.opacity,
         };
 
         moon.style.filter = `brightness(${CONFIG.section2.endBrightness})`;

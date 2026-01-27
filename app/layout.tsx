@@ -58,6 +58,16 @@ export default function RootLayout({
       <body
         className={`${raleway.variable} ${raleway.className} antialiased`}
       >
+        {/* Immediate SSR blocker - prevents flash before JS hydrates */}
+        <div
+          id="initial-loading-blocker"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 99,
+            background: "linear-gradient(to bottom, #000000 0%, #0a0a14 50%, #000814 100%)",
+          }}
+        />
         <LoadingOverlay />
         {children}
       </body>

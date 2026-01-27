@@ -80,6 +80,12 @@ export function LoadingScreen() {
 
   // Initialize loading timers (runs once on mount)
   useEffect(() => {
+    // Remove the SSR blocker now that React has hydrated
+    const blocker = document.getElementById("initial-loading-blocker");
+    if (blocker) {
+      blocker.remove();
+    }
+
     const progressInterval = setInterval(() => {
       if (globalState.progress < 90) {
         updateState({ progress: globalState.progress + Math.random() * 12 });

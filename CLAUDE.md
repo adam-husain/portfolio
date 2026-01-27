@@ -12,6 +12,7 @@ This project uses Bun runtime and package manager.
 ## Project Structure
 - `layout.md` - Final page design specifications
 - `ideas.md` - Brainstorming and ideas
+- `app/lib/animationTiming.ts` - Global animation timing configuration for all sections
 
 ## Design Principles
 - Single-page scroll-driven storytelling
@@ -32,3 +33,11 @@ This project uses Bun runtime and package manager.
 3. Education (TBD)
 4. Projects (TBD)
 5. Contact (TBD)
+
+## Animation Timing
+All scroll-driven animation timings are centralized in `app/lib/animationTiming.ts`. This file controls:
+- Section-specific timing (when elements appear/disappear within their section)
+- Cross-section fade timing (when elements from one section fade based on another section's progress)
+- Utility functions for calculating fade-in/fade-out values
+
+When modifying animation timing, always update this file to maintain consistency across sections.
