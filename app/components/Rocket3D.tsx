@@ -7,11 +7,27 @@ import * as THREE from "three";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { signalReady } from "./LoadingScreen";
-import RocketDebugPanel, { type RocketConfig } from "./debug/RocketDebugPanel";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// Default animation constants
+interface RocketConfig {
+  scale: number;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  arcHeight: number;
+  bounceAmplitude: number;
+  bounceSpeed: number;
+  wobbleSpeed: number;
+  rotationOffset: number;
+  flameSize: number;
+  flameGlow: number;
+  boosterOffset3D: number;
+  positionSmoothing: number;
+  rotationSmoothing: number;
+}
+
 const DEFAULT_CONFIG: RocketConfig = {
   scale: 0.075,
   startX: 5.6,
@@ -38,19 +54,6 @@ interface ScreenPosition {
   visible: boolean;
 }
 
-interface DebugPathPoint {
-  x: number;
-  y: number;
-  progress: number;
-}
-
-interface RocketDebugInfo {
-  world3D: { x: number; y: number; z: number };
-  targetWorld: { x: number; y: number };
-  scale: number;
-  rotationRad: number;
-}
-
 interface TrailPoint {
   id: number;
   x: number;
@@ -63,13 +66,11 @@ function RocketModel({
   scrollProgress,
   onScreenPositionUpdate,
   onReady,
-  onDebugUpdate,
   config,
 }: {
   scrollProgress: React.MutableRefObject<number>;
   onScreenPositionUpdate: (pos: ScreenPosition) => void;
   onReady: () => void;
-  onDebugUpdate?: (info: RocketDebugInfo) => void;
   config: RocketConfig;
 }) {
   const { scene } = useGLTF("/assets/rocket.glb");
@@ -159,14 +160,6 @@ function RocketModel({
       rotation: smoothedRotation.current,
       visible: boosterVectorRef.current.z < 1,
     });
-
-    // Send debug info
-    onDebugUpdate?.({
-      world3D: { x: smoothedX.current, y: smoothedY.current, z: 0 },
-      targetWorld: { x: targetX, y: targetY },
-      scale: smoothedScale.current,
-      rotationRad: smoothedRotation.current,
-    });
   });
 
   return (
@@ -182,13 +175,11 @@ function Scene({
   scrollProgress,
   onScreenPositionUpdate,
   onReady,
-  onDebugUpdate,
   config,
 }: {
   scrollProgress: React.MutableRefObject<number>;
   onScreenPositionUpdate: (pos: ScreenPosition) => void;
   onReady: () => void;
-  onDebugUpdate?: (info: RocketDebugInfo) => void;
   config: RocketConfig;
 }) {
   const { camera } = useThree();
@@ -207,7 +198,6 @@ function Scene({
         scrollProgress={scrollProgress}
         onScreenPositionUpdate={onScreenPositionUpdate}
         onReady={onReady}
-        onDebugUpdate={onDebugUpdate}
         config={config}
       />
     </>
@@ -478,259 +468,6 @@ function BoosterFlame({
   );
 }
 
-function RocketDebugOverlay({
-  screenPos,
-  scrollProgress,
-  debugInfo,
-  pathPoints,
-  config,
-}: {
-  screenPos: ScreenPosition;
-  scrollProgress: number;
-  debugInfo: RocketDebugInfo | null;
-  pathPoints: DebugPathPoint[];
-  config: RocketConfig;
-}) {
-  const rotationDeg = (screenPos.rotation * 180) / Math.PI;
-
-  return (
-    <div className="fixed inset-0 z-[100] pointer-events-none">
-      {/* Path trace visualization */}
-      <svg className="absolute inset-0 w-full h-full">
-        {/* Full theoretical path */}
-        <path
-          d={(() => {
-            const points: string[] = [];
-            for (let p = 0; p <= 1; p += 0.02) {
-              const arcOffset = Math.sin(p * Math.PI) * config.arcHeight;
-              const x = config.startX + (config.endX - config.startX) * p;
-              const y = config.startY + (config.endY - config.startY) * p + arcOffset;
-              // Convert 3D coords to approximate screen coords (assuming centered camera at z=10, fov=45)
-              const screenX = (x / 10) * (window.innerHeight / 2) + window.innerWidth / 2;
-              const screenY = (-y / 10) * (window.innerHeight / 2) + window.innerHeight / 2;
-              points.push(`${points.length === 0 ? "M" : "L"} ${screenX} ${screenY}`);
-            }
-            return points.join(" ");
-          })()}
-          fill="none"
-          stroke="rgba(100, 200, 255, 0.3)"
-          strokeWidth="2"
-          strokeDasharray="8 4"
-        />
-
-        {/* Actual traced path */}
-        {pathPoints.length > 1 && (
-          <path
-            d={pathPoints
-              .map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x} ${pt.y}`)
-              .join(" ")}
-            fill="none"
-            stroke="rgba(255, 200, 50, 0.8)"
-            strokeWidth="3"
-          />
-        )}
-
-        {/* Path points */}
-        {pathPoints.map((pt, i) => (
-          <circle
-            key={i}
-            cx={pt.x}
-            cy={pt.y}
-            r={3}
-            fill={`hsl(${pt.progress * 120}, 100%, 50%)`}
-          />
-        ))}
-
-        {/* Current position marker */}
-        {screenPos.visible && (
-          <>
-            {/* Crosshair */}
-            <line
-              x1={screenPos.x - 20}
-              y1={screenPos.y}
-              x2={screenPos.x + 20}
-              y2={screenPos.y}
-              stroke="rgba(255, 100, 100, 0.8)"
-              strokeWidth="2"
-            />
-            <line
-              x1={screenPos.x}
-              y1={screenPos.y - 20}
-              x2={screenPos.x}
-              y2={screenPos.y + 20}
-              stroke="rgba(255, 100, 100, 0.8)"
-              strokeWidth="2"
-            />
-            {/* Direction indicator */}
-            <line
-              x1={screenPos.x}
-              y1={screenPos.y}
-              x2={screenPos.x + Math.sin(-screenPos.rotation) * 50}
-              y2={screenPos.y - Math.cos(-screenPos.rotation) * 50}
-              stroke="rgba(100, 255, 100, 0.9)"
-              strokeWidth="3"
-              markerEnd="url(#arrowhead)"
-            />
-            <defs>
-              <marker
-                id="arrowhead"
-                markerWidth="10"
-                markerHeight="7"
-                refX="9"
-                refY="3.5"
-                orient="auto"
-              >
-                <polygon points="0 0, 10 3.5, 0 7" fill="rgba(100, 255, 100, 0.9)" />
-              </marker>
-            </defs>
-          </>
-        )}
-
-        {/* Start and end markers */}
-        <circle
-          cx={(config.startX / 10) * (window.innerHeight / 2) + window.innerWidth / 2}
-          cy={(-config.startY / 10) * (window.innerHeight / 2) + window.innerHeight / 2}
-          r={8}
-          fill="none"
-          stroke="rgba(100, 255, 100, 0.6)"
-          strokeWidth="2"
-        />
-        <text
-          x={(config.startX / 10) * (window.innerHeight / 2) + window.innerWidth / 2 + 15}
-          y={(-config.startY / 10) * (window.innerHeight / 2) + window.innerHeight / 2}
-          fill="rgba(100, 255, 100, 0.8)"
-          fontSize="12"
-        >
-          START
-        </text>
-        <circle
-          cx={(config.endX / 10) * (window.innerHeight / 2) + window.innerWidth / 2}
-          cy={(-config.endY / 10) * (window.innerHeight / 2) + window.innerHeight / 2}
-          r={8}
-          fill="none"
-          stroke="rgba(255, 100, 100, 0.6)"
-          strokeWidth="2"
-        />
-        <text
-          x={(config.endX / 10) * (window.innerHeight / 2) + window.innerWidth / 2 + 15}
-          y={(-config.endY / 10) * (window.innerHeight / 2) + window.innerHeight / 2}
-          fill="rgba(255, 100, 100, 0.8)"
-          fontSize="12"
-        >
-          END
-        </text>
-      </svg>
-
-      {/* Debug info panel */}
-      <div
-        className="absolute top-4 right-4 bg-black/80 text-white p-4 rounded-lg font-mono text-xs pointer-events-auto"
-        style={{ minWidth: 280 }}
-      >
-        <div className="text-yellow-400 font-bold mb-2 text-sm border-b border-yellow-400/30 pb-1">
-          ROCKET DEBUG
-        </div>
-
-        <div className="space-y-2">
-          <div>
-            <span className="text-gray-400">Scroll Progress:</span>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-2 bg-gray-700 rounded overflow-hidden">
-                <div
-                  className="h-full bg-yellow-400 transition-all"
-                  style={{ width: `${scrollProgress * 100}%` }}
-                />
-              </div>
-              <span className="text-yellow-400 w-16 text-right">
-                {(scrollProgress * 100).toFixed(1)}%
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <div>
-              <span className="text-gray-400">Screen X:</span>
-              <span className="text-cyan-400 ml-1">{screenPos.x.toFixed(1)}px</span>
-            </div>
-            <div>
-              <span className="text-gray-400">Screen Y:</span>
-              <span className="text-cyan-400 ml-1">{screenPos.y.toFixed(1)}px</span>
-            </div>
-          </div>
-
-          {debugInfo && (
-            <>
-              <div className="border-t border-gray-600 pt-2 mt-2">
-                <div className="text-gray-400 mb-1">3D World Position:</div>
-                <div className="grid grid-cols-3 gap-1 text-center">
-                  <div>
-                    <span className="text-gray-500">X</span>
-                    <div className="text-green-400">{debugInfo.world3D.x.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Y</span>
-                    <div className="text-green-400">{debugInfo.world3D.y.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Z</span>
-                    <div className="text-green-400">{debugInfo.world3D.z.toFixed(2)}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <span className="text-gray-400">Target Position:</span>
-                <span className="text-orange-400 ml-1">
-                  ({debugInfo.targetWorld.x.toFixed(2)}, {debugInfo.targetWorld.y.toFixed(2)})
-                </span>
-              </div>
-
-              <div>
-                <span className="text-gray-400">Scale:</span>
-                <span className="text-purple-400 ml-1">{debugInfo.scale.toFixed(4)}</span>
-              </div>
-            </>
-          )}
-
-          <div className="border-t border-gray-600 pt-2 mt-2">
-            <div className="text-gray-400 mb-1">Rotation:</div>
-            <div className="flex items-center gap-2">
-              <div
-                className="w-8 h-8 border-2 border-green-400 rounded-full relative"
-              >
-                <div
-                  className="absolute w-1 h-4 bg-green-400 left-1/2 top-0 origin-bottom"
-                  style={{
-                    transform: `translateX(-50%) rotate(${-rotationDeg}deg)`,
-                  }}
-                />
-              </div>
-              <div>
-                <div>
-                  <span className="text-gray-500">Deg:</span>
-                  <span className="text-green-400 ml-1">{rotationDeg.toFixed(1)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Rad:</span>
-                  <span className="text-green-400 ml-1">{screenPos.rotation.toFixed(3)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-600 pt-2 mt-2 text-gray-500">
-            <div>Visible: <span className={screenPos.visible ? "text-green-400" : "text-red-400"}>{screenPos.visible ? "YES" : "NO"}</span></div>
-            <div>Path Points: <span className="text-cyan-400">{pathPoints.length}</span></div>
-          </div>
-        </div>
-
-        <div className="mt-3 pt-2 border-t border-gray-600 text-gray-500 text-[10px]">
-          Press <kbd className="bg-gray-700 px-1 rounded">D</kbd> to toggle debug
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function Rocket3D() {
   const scrollProgressRef = useRef(0);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -741,31 +478,13 @@ export default function Rocket3D() {
   const lastStateUpdateRef = useRef(0);
   const hasSignaledReady = useRef(false);
 
-  // Config state
-  const [config, setConfig] = useState<RocketConfig>(DEFAULT_CONFIG);
+  const config = DEFAULT_CONFIG;
   const configRef = useRef(config);
-  configRef.current = config;
 
-  // Debug state
-  const [showDebug, setShowDebug] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<RocketDebugInfo | null>(null);
-  const [debugPathPoints, setDebugPathPoints] = useState<DebugPathPoint[]>([]);
-  const lastDebugProgressRef = useRef(-1);
-
-  // Use refs to access current values in the interval without adding dependencies
   const screenPosRef = useRef(screenPos);
   const scrollProgressValRef = useRef(scrollProgress);
   screenPosRef.current = screenPos;
   scrollProgressValRef.current = scrollProgress;
-
-  // Config change handlers
-  const handleConfigChange = useCallback((key: keyof RocketConfig, value: number) => {
-    setConfig((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setConfig(DEFAULT_CONFIG);
-  }, []);
 
   const handleReady = useCallback(() => {
     setIsReady(true);
@@ -775,44 +494,7 @@ export default function Rocket3D() {
     }
   }, []);
 
-  // Debug keyboard toggle
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "d" || e.key === "D") {
-        setShowDebug((prev) => !prev);
-      }
-      // Clear path with 'c'
-      if ((e.key === "c" || e.key === "C") && showDebug) {
-        setDebugPathPoints([]);
-        lastDebugProgressRef.current = -1;
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showDebug]);
-
-  // Debug info handler - records path points at progress intervals
-  const handleDebugUpdate = useCallback((info: RocketDebugInfo) => {
-    setDebugInfo(info);
-
-    // Record path point every 5% progress
-    const progressStep = Math.floor(scrollProgressRef.current * 20);
-    if (progressStep !== lastDebugProgressRef.current && scrollProgressRef.current > 0) {
-      lastDebugProgressRef.current = progressStep;
-      setDebugPathPoints((prev) => {
-        // Avoid duplicates at same progress
-        if (prev.length > 0 && Math.abs(prev[prev.length - 1].progress - scrollProgressRef.current) < 0.03) {
-          return prev;
-        }
-        // Convert 3D to screen coords
-        const screenX = (info.world3D.x / 10) * (window.innerHeight / 2) + window.innerWidth / 2;
-        const screenY = (-info.world3D.y / 10) * (window.innerHeight / 2) + window.innerHeight / 2;
-        return [...prev, { x: screenX, y: screenY, progress: scrollProgressRef.current }];
-      });
-    }
-  }, []);
-
-  // Single interval for trail creation and fading with idle detection
+  // Trail creation and fading with idle detection
   useEffect(() => {
     let lastTrailTime = 0;
     let lastProgress = scrollProgressValRef.current;
@@ -933,12 +615,11 @@ export default function Rocket3D() {
         style={{ opacity: isReady ? 1 : 0 }}
         aria-hidden="true"
       >
-        <Canvas gl={{ antialias: true, alpha: true }} dpr={[1, 2]} camera={{ fov: 45, near: 0.1, far: 100 }}>
+        <Canvas gl={{ antialias: true, alpha: true }} dpr={[1, 2]} camera={{ fov: 45, near: 0.1, far: 100 }} style={{ pointerEvents: "none" }}>
           <Scene
             scrollProgress={scrollProgressRef}
             onScreenPositionUpdate={handleScreenPositionUpdate}
             onReady={handleReady}
-            onDebugUpdate={showDebug ? handleDebugUpdate : undefined}
             config={config}
           />
         </Canvas>
@@ -951,26 +632,6 @@ export default function Rocket3D() {
       >
         <BoosterFlame screenPos={screenPos} scrollProgress={scrollProgress} trails={trails} config={config} />
       </div>
-
-      {/* Debug overlay */}
-      {showDebug && (
-        <RocketDebugOverlay
-          screenPos={screenPos}
-          scrollProgress={scrollProgress}
-          debugInfo={debugInfo}
-          pathPoints={debugPathPoints}
-          config={config}
-        />
-      )}
-
-      {/* Rocket Debug Panel (dev only) */}
-      {process.env.NODE_ENV === "development" && (
-        <RocketDebugPanel
-          config={config}
-          onConfigChange={handleConfigChange}
-          onReset={handleReset}
-        />
-      )}
     </>
   );
 }

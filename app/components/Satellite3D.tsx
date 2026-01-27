@@ -272,6 +272,7 @@ export default function Satellite3D() {
           gl={{ antialias: true, alpha: true }}
           dpr={[1, 2]}
           camera={{ fov: 45, near: 0.1, far: 100 }}
+          style={{ pointerEvents: "none" }}
         >
           <Scene scrollProgress={scrollProgressRef} section4Progress={section4ProgressRef} />
         </Canvas>

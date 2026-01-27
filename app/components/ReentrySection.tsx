@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
+import React, { useRef, useEffect, useMemo, useCallback } from "react";
 import { Canvas, useFrame, useThree, useLoader } from "@react-three/fiber";
 import { Center } from "@react-three/drei";
 import * as THREE from "three";
@@ -8,16 +8,33 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { updateSection4Progress, useScrollProgress, mapRange } from "@/app/lib/scrollProgress";
-import ReentryDebugPanel, {
-  type ReentryConfig,
-  type AsteroidPath,
-} from "@/app/components/debug/ReentryDebugPanel";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// ============================================================
-// DEFAULT CONFIGURATION
-// ============================================================
+interface ReentryConfig {
+  sectionHeight: string;
+  asteroidCount: number;
+  asteroidScaleRange: [number, number];
+  balloonScale: number;
+  balloonStartX: number;
+  balloonStartY: number;
+  balloonEndX: number;
+  balloonEndY: number;
+  balloonWobbleSpeed: number;
+  balloonWobbleAmount: number;
+  textStart: number;
+  textEnd: number;
+}
+
+interface AsteroidPath {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  delay: number;
+  scale: number;
+}
+
 const DEFAULT_CONFIG: ReentryConfig = {
   // Section
   sectionHeight: "200vh",
@@ -249,75 +266,6 @@ function BalloonModel({
 }
 
 // ============================================================
-// DEBUG POSITION INDICATORS
-// ============================================================
-const DEBUG_COLORS = {
-  start: "#22c55e", // green
-  end: "#ef4444",   // red
-};
-
-function DebugPositionIndicator({
-  position,
-  color,
-}: {
-  position: [number, number, number];
-  color: string;
-}) {
-  return (
-    <group position={position}>
-      <mesh>
-        <sphereGeometry args={[0.15, 16, 16]} />
-        <meshBasicMaterial color={color} transparent opacity={0.8} />
-      </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.25, 0.3, 32]} />
-        <meshBasicMaterial color={color} transparent opacity={0.5} side={THREE.DoubleSide} />
-      </mesh>
-    </group>
-  );
-}
-
-function DebugAsteroidPath({ path }: { path: AsteroidPath }) {
-  const lineObj = useMemo(() => {
-    const points = [
-      new THREE.Vector3(path.startX, path.startY, 0),
-      new THREE.Vector3(path.endX, path.endY, 0),
-    ];
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.4 });
-    return new THREE.Line(geometry, material);
-  }, [path.startX, path.startY, path.endX, path.endY]);
-
-  return (
-    <group>
-      <primitive object={lineObj} />
-      <DebugPositionIndicator position={[path.startX, path.startY, 0]} color={DEBUG_COLORS.start} />
-      <DebugPositionIndicator position={[path.endX, path.endY, 0]} color={DEBUG_COLORS.end} />
-    </group>
-  );
-}
-
-function DebugBalloonPath({ config }: { config: ReentryConfig }) {
-  const lineObj = useMemo(() => {
-    const points = [
-      new THREE.Vector3(config.balloonStartX, config.balloonStartY, 0),
-      new THREE.Vector3(config.balloonEndX, config.balloonEndY, 0),
-    ];
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineBasicMaterial({ color: "#fca311", transparent: true, opacity: 0.6 });
-    return new THREE.Line(geometry, material);
-  }, [config.balloonStartX, config.balloonStartY, config.balloonEndX, config.balloonEndY]);
-
-  return (
-    <group>
-      <primitive object={lineObj} />
-      <DebugPositionIndicator position={[config.balloonStartX, config.balloonStartY, 0]} color={DEBUG_COLORS.start} />
-      <DebugPositionIndicator position={[config.balloonEndX, config.balloonEndY, 0]} color={DEBUG_COLORS.end} />
-    </group>
-  );
-}
-
-// ============================================================
 // 3D SCENE
 // ============================================================
 function Scene({
@@ -325,16 +273,12 @@ function Scene({
   onAsteroidPositionUpdate,
   asteroidPaths,
   config,
-  expandedAsteroidIndices,
-  balloonExpanded,
   section5Progress,
 }: {
   scrollProgress: React.MutableRefObject<number>;
   onAsteroidPositionUpdate: (index: number, x: number, y: number, visible: boolean, rotation: number, scale: number) => void;
   asteroidPaths: AsteroidPath[];
   config: ReentryConfig;
-  expandedAsteroidIndices: number[];
-  balloonExpanded: boolean;
   section5Progress: React.MutableRefObject<number>;
 }) {
   const { camera } = useThree();
@@ -351,7 +295,6 @@ function Scene({
       <directionalLight position={[-3, -2, 3]} intensity={0.3} color="#ff6b35" />
       <pointLight position={[0, 0, 5]} intensity={0.5} color="#ffd166" />
 
-      {/* Asteroids */}
       {asteroidPaths.map((path, index) => (
         <AsteroidModel
           key={index}
@@ -362,16 +305,7 @@ function Scene({
         />
       ))}
 
-      {/* Balloon */}
       <BalloonModel scrollProgress={scrollProgress} config={config} section5Progress={section5Progress} />
-
-      {/* Debug indicators for expanded asteroids */}
-      {expandedAsteroidIndices.map((index) => (
-        <DebugAsteroidPath key={`debug-${index}`} path={asteroidPaths[index]} />
-      ))}
-
-      {/* Debug indicators for balloon when expanded */}
-      {balloonExpanded && <DebugBalloonPath config={config} />}
     </>
   );
 }
@@ -749,14 +683,11 @@ function HeatDistortion({ scrollProgressRef }: { scrollProgressRef: React.Mutabl
 export default function ReentrySection() {
   const scrollProgressRef = useRef(0);
   const section5ProgressRef = useRef(0);
-  const [config, setConfig] = useState<ReentryConfig>(DEFAULT_CONFIG);
-  const [asteroidPaths, setAsteroidPaths] = useState<AsteroidPath[]>(DEFAULT_ASTEROID_PATHS);
-  // Use ref for asteroid positions to avoid re-renders on every frame
+  const config = DEFAULT_CONFIG;
+  const asteroidPaths = DEFAULT_ASTEROID_PATHS;
   const asteroidPositionsRef = useRef<{ x: number; y: number; visible: boolean; rotation: number; scale: number }[]>(
     DEFAULT_ASTEROID_PATHS.map((p) => ({ x: 0, y: 0, visible: false, rotation: 0, scale: p.scale }))
   );
-  const [expandedAsteroidIndices, setExpandedAsteroidIndices] = useState<number[]>([]);
-  const [balloonExpanded, setBalloonExpanded] = useState(false);
   const textRef = useRef<HTMLDivElement>(null);
   const configRef = useRef(config);
 
@@ -792,32 +723,6 @@ export default function ReentrySection() {
   // Uses ref to avoid re-renders - FlameEffects reads from ref in its own animation loop
   const handleAsteroidPositionUpdate = useCallback((index: number, x: number, y: number, visible: boolean, rotation: number, scale: number) => {
     asteroidPositionsRef.current[index] = { x, y, visible, rotation, scale };
-  }, []);
-
-  // Debug panel handlers
-  const handleConfigChange = useCallback((key: keyof ReentryConfig, value: number | string) => {
-    setConfig((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
-  const handleAsteroidPathChange = useCallback((index: number, key: keyof AsteroidPath, value: number) => {
-    setAsteroidPaths((prev) => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [key]: value };
-      return updated;
-    });
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setConfig(DEFAULT_CONFIG);
-    setAsteroidPaths(DEFAULT_ASTEROID_PATHS);
-  }, []);
-
-  const handleBalloonExpandedChange = useCallback((expanded: boolean) => {
-    setBalloonExpanded(expanded);
-  }, []);
-
-  const handleExpandedAsteroidsChange = useCallback((indices: number[]) => {
-    setExpandedAsteroidIndices(indices);
   }, []);
 
   // ScrollTrigger setup
@@ -888,14 +793,13 @@ export default function ReentrySection() {
           gl={{ antialias: true, alpha: true }}
           dpr={[1, 2]}
           camera={{ fov: 45, near: 0.1, far: 100 }}
+          style={{ pointerEvents: "none" }}
         >
           <Scene
             scrollProgress={scrollProgressRef}
             onAsteroidPositionUpdate={handleAsteroidPositionUpdate}
             asteroidPaths={asteroidPaths}
             config={config}
-            expandedAsteroidIndices={expandedAsteroidIndices}
-            balloonExpanded={balloonExpanded}
             section5Progress={section5ProgressRef}
           />
         </Canvas>
@@ -942,18 +846,6 @@ export default function ReentrySection() {
         </p>
       </div>
 
-      {/* Debug Panel (dev only) */}
-      {process.env.NODE_ENV === "development" && (
-        <ReentryDebugPanel
-          config={config}
-          asteroidPaths={asteroidPaths}
-          onConfigChange={handleConfigChange}
-          onAsteroidPathChange={handleAsteroidPathChange}
-          onReset={handleReset}
-          onExpandedAsteroidsChange={handleExpandedAsteroidsChange}
-          onBalloonExpandedChange={handleBalloonExpandedChange}
-        />
-      )}
     </>
   );
 }
