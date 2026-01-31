@@ -30,9 +30,17 @@ export default function CloudscapeSection() {
   // Subscribe to section 6 progress for text fade-out
   const { section6 } = useScrollProgress();
 
-  // Keep section6 ref in sync
+  // Keep section6 ref in sync and update text opacity when section6 changes
   useEffect(() => {
     section6ProgressRef.current = section6;
+
+    // When section 6 is scrolling, manually update text fade-out
+    // (Section 5's ScrollTrigger onUpdate won't fire when we're in Section 6)
+    if (textRef.current && section6 > 0) {
+      const section6FadeOut = 1 - mapRange(section6, 0.1, 0.4);
+      // Text should be fully faded in at this point (section 5 complete)
+      textRef.current.style.opacity = String(section6FadeOut);
+    }
   }, [section6]);
 
   useEffect(() => {
@@ -92,14 +100,6 @@ export default function CloudscapeSection() {
           to see clearly
         </h2>
       </div>
-
-      {/*
-        TODO: Implement cloudscape visuals
-        - Additional cloud layers specific to this section
-        - Soft ambient lighting effects
-        - Subtle fog/mist overlays
-        - Balloon scale-down animation (coordinate with ReentrySection)
-      */}
     </>
   );
 }
