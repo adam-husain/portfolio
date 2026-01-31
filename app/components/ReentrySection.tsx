@@ -154,6 +154,10 @@ function AsteroidModel({
       smoothedRotation.current.z
     );
 
+    // Toggle visibility based on delayed progress
+    const visible = delayedProgress > 0 && delayedProgress < 1;
+    asteroidRef.current.visible = visible;
+
     // Project smoothed position to screen coordinates for flame effect
     positionRef.current.set(smoothedPosition.current.x, smoothedPosition.current.y, 0);
     positionRef.current.project(camera);
@@ -164,7 +168,6 @@ function AsteroidModel({
     // Calculate movement direction for flame angle
     const angle = Math.atan2(path.endY - path.startY, path.endX - path.startX);
 
-    const visible = delayedProgress > 0 && delayedProgress < 1;
     onPositionUpdate(index, screenX, screenY, visible, angle, path.scale);
   });
 

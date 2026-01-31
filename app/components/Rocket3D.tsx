@@ -7,6 +7,7 @@ import * as THREE from "three";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { signalReady } from "./LoadingScreen";
+import { useScrollProgress, updateSection2Progress } from "@/app/lib/scrollProgress";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -64,11 +65,13 @@ interface TrailPoint {
 
 function RocketModel({
   scrollProgress,
+  section2ProgressRef,
   onScreenPositionUpdate,
   onReady,
   config,
 }: {
   scrollProgress: React.MutableRefObject<number>;
+  section2ProgressRef: React.MutableRefObject<number>;
   onScreenPositionUpdate: (pos: ScreenPosition) => void;
   onReady: () => void;
   config: RocketConfig;
@@ -142,6 +145,16 @@ function RocketModel({
     smoothedScale.current = THREE.MathUtils.lerp(smoothedScale.current, targetScale, posFactor);
     rocketRef.current.scale.setScalar(smoothedScale.current);
 
+    // Toggle visibility based on section2 progress - hide when section2 is complete
+    const isVisible = section2ProgressRef.current < 1.0;
+    rocketRef.current.visible = isVisible;
+
+    // When invisible, notify with visible:false to hide flame/shadow, then skip further updates
+    if (!isVisible) {
+      onScreenPositionUpdate({ x: 0, y: 0, rotation: 0, visible: false });
+      return;
+    }
+
     // Calculate booster position in 3D space using smoothed values
     const boosterDirX = Math.sin(smoothedRotation.current);
     const boosterDirY = -Math.cos(smoothedRotation.current);
@@ -173,11 +186,13 @@ function RocketModel({
 
 function Scene({
   scrollProgress,
+  section2ProgressRef,
   onScreenPositionUpdate,
   onReady,
   config,
 }: {
   scrollProgress: React.MutableRefObject<number>;
+  section2ProgressRef: React.MutableRefObject<number>;
   onScreenPositionUpdate: (pos: ScreenPosition) => void;
   onReady: () => void;
   config: RocketConfig;
@@ -196,6 +211,7 @@ function Scene({
       <directionalLight position={[0, -3, 2]} intensity={0.5} color="#e8f0ff" />
       <RocketModel
         scrollProgress={scrollProgress}
+        section2ProgressRef={section2ProgressRef}
         onScreenPositionUpdate={onScreenPositionUpdate}
         onReady={onReady}
         config={config}
@@ -470,6 +486,7 @@ function BoosterFlame({
 
 export default function Rocket3D() {
   const scrollProgressRef = useRef(0);
+  const section2ProgressRef = useRef(0);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [screenPos, setScreenPos] = useState<ScreenPosition>({ x: 0, y: 0, rotation: 0, visible: false });
   const [trails, setTrails] = useState<TrailPoint[]>([]);
@@ -480,6 +497,14 @@ export default function Rocket3D() {
 
   const config = DEFAULT_CONFIG;
   const configRef = useRef(config);
+
+  // Subscribe to section2 progress for visibility control
+  const { section2 } = useScrollProgress();
+
+  // Keep section2 ref in sync
+  useEffect(() => {
+    section2ProgressRef.current = section2;
+  }, [section2]);
 
   const screenPosRef = useRef(screenPos);
   const scrollProgressValRef = useRef(scrollProgress);
@@ -574,6 +599,7 @@ export default function Rocket3D() {
       scrub: 1.8,
       onUpdate: (self) => {
         scrollProgressRef.current = self.progress;
+        updateSection2Progress(self.progress);
         // Throttle React state updates to ~60fps to prevent lag from touchpad scroll events
         const now = performance.now();
         if (now - lastStateUpdateRef.current >= 16) {
@@ -584,12 +610,14 @@ export default function Rocket3D() {
       onRefresh: (self) => {
         // Sync progress immediately when trigger is refreshed (e.g., on remount)
         scrollProgressRef.current = self.progress;
+        updateSection2Progress(self.progress);
         setScrollProgress(self.progress);
       },
     });
 
     // Immediately sync to current scroll position on mount
     scrollProgressRef.current = trigger.progress;
+    updateSection2Progress(trigger.progress);
     setScrollProgress(trigger.progress);
 
     return () => trigger.kill();
@@ -618,6 +646,7 @@ export default function Rocket3D() {
         <Canvas gl={{ antialias: true, alpha: true }} dpr={[1, 2]} camera={{ fov: 45, near: 0.1, far: 100 }} style={{ pointerEvents: "none" }}>
           <Scene
             scrollProgress={scrollProgressRef}
+            section2ProgressRef={section2ProgressRef}
             onScreenPositionUpdate={handleScreenPositionUpdate}
             onReady={handleReady}
             config={config}
