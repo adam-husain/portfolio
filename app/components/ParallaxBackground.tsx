@@ -6,9 +6,17 @@ import { useEffect, useRef } from "react";
 // REVERSE PARALLAX: negative values = stars move UP when scrolling DOWN
 // This creates the illusion of descending through space
 const PARALLAX_CONFIG = {
-  smallStars: -0.08,   // Slowest - far away (barely moves)
-  mediumStars: -0.12,  // Medium distance
-  largeStars: -0.18,   // Closest stars - move slightly more
+  desktop: {
+    smallStars: -0.08,   // Slowest - far away (barely moves)
+    mediumStars: -0.12,  // Medium distance
+    largeStars: -0.18,   // Closest stars - move slightly more
+  },
+  mobile: {
+    // Reduced multipliers for smoother mobile scrolling
+    smallStars: -0.03,
+    mediumStars: -0.05,
+    largeStars: -0.08,
+  },
 };
 
 // Color transition points (based on total scroll progress)
@@ -32,6 +40,10 @@ export default function ParallaxBackground() {
   const starMaskRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Determine if mobile based on viewport width
+    const isMobile = () => window.innerWidth < 768;
+    const getParallaxConfig = () => isMobile() ? PARALLAX_CONFIG.mobile : PARALLAX_CONFIG.desktop;
+
     // Calculate total page height for progress calculations
     const calculateProgress = () => {
       const scrollTop = window.scrollY;
@@ -53,16 +65,17 @@ export default function ParallaxBackground() {
     const handleScroll = () => {
       const progress = calculateProgress();
       const scrollY = window.scrollY;
+      const config = getParallaxConfig();
 
       // Apply REVERSE parallax to star layers (stars move opposite to scroll)
       if (smallStarsRef.current) {
-        smallStarsRef.current.style.transform = `translateY(${scrollY * PARALLAX_CONFIG.smallStars}px)`;
+        smallStarsRef.current.style.transform = `translateY(${scrollY * config.smallStars}px)`;
       }
       if (mediumStarsRef.current) {
-        mediumStarsRef.current.style.transform = `translateY(${scrollY * PARALLAX_CONFIG.mediumStars}px)`;
+        mediumStarsRef.current.style.transform = `translateY(${scrollY * config.mediumStars}px)`;
       }
       if (largeStarsRef.current) {
-        largeStarsRef.current.style.transform = `translateY(${scrollY * PARALLAX_CONFIG.largeStars}px)`;
+        largeStarsRef.current.style.transform = `translateY(${scrollY * config.largeStars}px)`;
       }
 
       // Calculate color transition

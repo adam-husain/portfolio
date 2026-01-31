@@ -371,11 +371,11 @@ export default function MoonReveal() {
         {/* Embossed text overlay */}
         <div
           ref={textRef}
-          className="fixed top-1/2 left-8 md:left-16 lg:left-24 -translate-y-1/2 max-w-lg text-white"
+          className="fixed top-1/2 left-4 md:left-16 lg:left-24 -translate-y-1/2 max-w-[90vw] md:max-w-lg text-white"
           style={{ opacity: 0 }}
         >
           <h2
-            className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-4"
+            className="text-2xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-3 md:mb-4"
             style={{
               textShadow:
                 "2px 2px 4px rgba(0,0,0,0.8), -1px -1px 0 rgba(255,255,255,0.1), 0 0 40px rgba(255,255,255,0.2)",
@@ -386,7 +386,7 @@ export default function MoonReveal() {
             not rocket science
           </h2>
           <p
-            className="text-base md:text-lg lg:text-xl text-white/80 leading-relaxed"
+            className="text-sm md:text-lg lg:text-xl text-white/80 leading-relaxed"
             style={{
               textShadow: "1px 1px 3px rgba(0,0,0,0.9)",
             }}

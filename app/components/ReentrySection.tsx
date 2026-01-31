@@ -819,11 +819,11 @@ export default function ReentrySection() {
       {/* Text overlay */}
       <div
         ref={textRef}
-        className="fixed top-1/2 right-6 md:right-12 lg:right-20 w-[90%] md:w-auto max-w-lg -translate-y-1/2 text-white text-right z-[33] pointer-events-none"
+        className="fixed top-1/2 right-4 md:right-12 lg:right-20 max-w-[90vw] md:max-w-lg -translate-y-1/2 text-white text-right z-[33] pointer-events-none"
         style={{ opacity: 0, transform: "translateY(calc(-50% + 50px))" }}
       >
         <h2
-          className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight mb-4 text-primary"
+          className="text-xl md:text-3xl lg:text-4xl font-bold tracking-tight mb-3 md:mb-4 text-primary"
           style={{
             textShadow:
               "2px 2px 4px rgba(0,0,0,0.9), 0 0 30px rgba(252, 163, 17, 0.4)",
@@ -832,7 +832,7 @@ export default function ReentrySection() {
           You are not alone
         </h2>
         <p
-          className="text-sm md:text-base lg:text-lg text-white/85 leading-relaxed"
+          className="text-xs md:text-base lg:text-lg text-white/85 leading-relaxed"
           style={{
             textShadow: "1px 1px 3px rgba(0,0,0,0.95)",
           }}

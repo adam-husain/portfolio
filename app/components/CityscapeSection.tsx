@@ -116,20 +116,20 @@ export default function CityscapeSection() {
         />
 
         {/* Placeholder building silhouettes - predetermined values for SSR compatibility */}
-        <div className="absolute bottom-0 left-0 right-0 h-[60%] flex items-end justify-center gap-1 md:gap-2 px-4">
+        <div className="absolute bottom-0 left-0 right-0 h-[60%] flex items-end justify-center gap-0.5 md:gap-2 px-2 md:px-4">
           {/* Building shapes - replace with actual skyline */}
           {BUILDING_CONFIG.map((building, i) => (
             <div
               key={i}
-              className="bg-secondary/80 rounded-t-sm relative"
+              className="bg-secondary/80 rounded-t-sm relative flex-shrink-0"
               style={{
                 height: `${building.height}%`,
-                width: `${building.width}px`,
-                minWidth: "15px",
+                width: `clamp(12px, ${building.width * 0.6}px, ${building.width}px)`,
+                minWidth: "10px",
               }}
             >
               {/* Window lights */}
-              <div className="absolute inset-1 grid grid-cols-2 gap-0.5">
+              <div className="absolute inset-0.5 md:inset-1 grid grid-cols-2 gap-px md:gap-0.5">
                 {building.windows.map((opacity, j) => (
                   <div
                     key={j}

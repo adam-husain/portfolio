@@ -221,11 +221,11 @@ export function LoadingScreen() {
       </div>
 
       {/* Loading content */}
-      <div ref={contentRef} className="relative z-10 flex flex-col items-center gap-8">
+      <div ref={contentRef} className="relative z-10 flex flex-col items-center gap-6 md:gap-8 px-6">
         {/* Rotating message */}
         <div className="h-6 overflow-hidden">
           <p
-            className="text-white/50 text-sm tracking-wide text-center transition-all duration-400 ease-out"
+            className="text-white/50 text-xs md:text-sm tracking-wide text-center transition-all duration-400 ease-out max-w-[85vw]"
             style={{
               transform: messageState === "entering"
                 ? "translateY(100%)"
@@ -240,7 +240,7 @@ export function LoadingScreen() {
         </div>
 
         {/* Progress bar */}
-        <div className="w-48 h-px bg-white/10 rounded-full overflow-hidden">
+        <div className="w-40 md:w-48 h-px bg-white/10 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-primary/40 via-primary to-primary/40 rounded-full transition-all duration-300 ease-out"
             style={{ width: `${displayProgress}%` }}
