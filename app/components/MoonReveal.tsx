@@ -26,8 +26,22 @@ const CONFIG = {
   },
 };
 
+// Mobile portrait config - needs different Y% because moon size is smaller relative to viewport
+// On portrait, moon = 150vh but screen is taller than wide, so translateY needs adjustment
+const MOBILE_CONFIG = {
+  section2: {
+    // Lower values = moon rises higher on screen (fills viewport)
+    startYPercent: 40,
+    endYPercent: 33,
+  },
+};
+
 // Smoothing factor for moon movement (lower = smoother but laggier)
 const SMOOTH_FACTOR = 0.12;
+
+// Helper to detect mobile portrait orientation
+const isMobilePortrait = () =>
+  typeof window !== "undefined" && window.innerWidth < 768 && window.innerHeight > window.innerWidth;
 
 export default function MoonReveal() {
   const maskRef = useRef<HTMLDivElement>(null);
@@ -86,7 +100,9 @@ export default function MoonReveal() {
       const baseSize = getBaseSize();
       const centerX = window.innerWidth / 2;
       const bottomPos = window.innerHeight;
-      const centerY = bottomPos + baseSize * (CONFIG.section2.endYPercent / 100 - 0.5);
+      // Use mobile config for portrait orientations
+      const endY = isMobilePortrait() ? MOBILE_CONFIG.section2.endYPercent : CONFIG.section2.endYPercent;
+      const centerY = bottomPos + baseSize * (endY / 100 - 0.5);
       return { centerX, centerY, size: baseSize };
     };
 
@@ -175,7 +191,13 @@ export default function MoonReveal() {
         // Only apply section 2 transforms if section 3 hasn't started
         if (s3p <= 0) {
           isSection3Active.current = false;
-          const yPercent = lerp(CONFIG.section2.startYPercent, CONFIG.section2.endYPercent, p);
+
+          // Use mobile config for portrait orientations
+          const isMobile = isMobilePortrait();
+          const startY = isMobile ? MOBILE_CONFIG.section2.startYPercent : CONFIG.section2.startYPercent;
+          const endY = isMobile ? MOBILE_CONFIG.section2.endYPercent : CONFIG.section2.endYPercent;
+
+          const yPercent = lerp(startY, endY, p);
           const brightness = lerp(CONFIG.section2.startBrightness, CONFIG.section2.endBrightness, p);
 
           moon.style.width = "max(150vw, 150vh)";
