@@ -4,6 +4,13 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useScrollProgress } from "@/app/lib/scrollProgress";
 
+// TODO: Future improvements
+// - Add reduced motion support (prefers-reduced-motion media query)
+// - Consider using CSS transforms with GPU acceleration hints
+// - Add loading="eager" for above-fold clouds if needed
+// - Consider IntersectionObserver to pause animations when not visible
+// - Optimize mobile animations with CSS-only approach if performance issues arise
+
 interface ParallaxState {
   x: number;
   y: number;
@@ -34,10 +41,10 @@ interface CloudLayer {
 const CLOUD_LAYERS: CloudLayer[] = [
   // Back layers
   {
-    src: "/images/clouds/horizontal.webp",
-    position: { left: "-15%", bottom: "-5%" },
+    src: "/images/clouds/bunched.webp",
+    position: { left: "-50%", bottom: "-5%" },
     mobilePosition: { left: "-20%", bottom: "-3%" },
-    size: "130vw",
+    size: "100vw",
     mobileSize: "180vw",
     opacity: 0.6,
     blur: 4,
@@ -50,24 +57,6 @@ const CLOUD_LAYERS: CloudLayer[] = [
     slideDistance: 140,
     exitSide: "left",
     section5DriftRate: 0.6,
-  },
-  {
-    src: "/images/clouds/bunched.webp",
-    position: { left: "-12%", top: "8%" },
-    mobilePosition: { left: "-18%", top: "12%" },
-    size: "55vw",
-    mobileSize: "70vw",
-    opacity: 0.5,
-    blur: 5,
-    parallaxMultiplier: 0.006,
-    zIndex: 29,
-    layer: "back",
-    scaleX: 1.4,
-    scaleY: 0.9,
-    fadeIn: 0.48,
-    slideDistance: 130,
-    exitSide: "left",
-    section5DriftRate: 0.85,
   },
   {
     src: "/images/clouds/horizontal-2.webp",
@@ -104,7 +93,7 @@ const CLOUD_LAYERS: CloudLayer[] = [
     fadeIn: 0.55,
     slideDistance: 125,
     exitSide: "left",
-    section5DriftRate: 1.0,
+    section5DriftRate: 1,
   },
   // Front layers
   {
@@ -200,24 +189,6 @@ const CLOUD_LAYERS: CloudLayer[] = [
   },
   // Overlay layers (subtle atmospheric haze)
   {
-    src: "/images/clouds/horizontal.webp",
-    position: { left: "10%", top: "35%" },
-    mobilePosition: { left: "5%", top: "40%" },
-    size: "80vw",
-    mobileSize: "100vw",
-    opacity: 0.15,
-    blur: 2,
-    parallaxMultiplier: 0.03,
-    zIndex: 36,
-    layer: "front",
-    scaleX: 1.5,
-    scaleY: 0.6,
-    fadeIn: 0.6,
-    slideDistance: 90,
-    exitSide: "left",
-    section5DriftRate: 0.5,
-  },
-  {
     src: "/images/clouds/bunched.webp",
     position: { right: "15%", top: "20%" },
     mobilePosition: { right: "10%", top: "25%" },
@@ -267,6 +238,7 @@ const EXIT_END = 0.55;
 const EXIT_DRIFT_DISTANCE = 120;
 const DRIFT_SMOOTHING = 0.06;
 const EXIT_SMOOTHING = 0.05;
+const CLOUD_COUNT = CLOUD_LAYERS.length;
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
@@ -281,10 +253,11 @@ export default function CloudAtmosphere() {
   const parallaxRef = useRef<ParallaxState>({ x: 0, y: 0 });
   const smoothParallaxRef = useRef<ParallaxState>({ x: 0, y: 0 });
   const cloudRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const opacityRefs = useRef<number[]>(CLOUD_LAYERS.map(() => 0));
-  const smoothDriftYRefs = useRef<number[]>(CLOUD_LAYERS.map(() => 0));
-  const smoothExitXRefs = useRef<number[]>(CLOUD_LAYERS.map(() => 0));
+  const opacityRefs = useRef<number[]>(new Array(CLOUD_COUNT).fill(0));
+  const smoothDriftYRefs = useRef<number[]>(new Array(CLOUD_COUNT).fill(0));
+  const smoothExitXRefs = useRef<number[]>(new Array(CLOUD_COUNT).fill(0));
   const scrollProgress = useScrollProgress();
+
   const section4Progress = scrollProgress.section4;
   const section5Progress = scrollProgress.section5;
   const section6Progress = scrollProgress.section6;
@@ -300,9 +273,10 @@ export default function CloudAtmosphere() {
     if (typeof window === "undefined") return;
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
-    const x = (clientX - centerX) / centerX;
-    const y = (clientY - centerY) / centerY;
-    parallaxRef.current = { x: x * MOUSE_MULTIPLIER, y: y * MOUSE_MULTIPLIER * 0.4 };
+    parallaxRef.current = {
+      x: ((clientX - centerX) / centerX) * MOUSE_MULTIPLIER,
+      y: ((clientY - centerY) / centerY) * MOUSE_MULTIPLIER * 0.4,
+    };
   }, []);
 
   useEffect(() => {
@@ -335,10 +309,11 @@ export default function CloudAtmosphere() {
       smooth.x += (target.x - smooth.x) * MOUSE_EASE;
       smooth.y += (target.y - smooth.y) * MOUSE_EASE;
 
-      cloudRefs.current.forEach((el, i) => {
-        if (!el) return;
+      const refs = cloudRefs.current;
+      for (let i = 0; i < CLOUD_COUNT; i++) {
+        const el = refs[i];
+        if (!el) continue;
         const cloud = CLOUD_LAYERS[i];
-        if (!cloud) return;
 
         // Fade in and slide up
         let targetOpacity = 0;
@@ -363,8 +338,7 @@ export default function CloudAtmosphere() {
         if (exitProgress > EXIT_START) {
           const exitAnimProgress = Math.min(1, (exitProgress - EXIT_START) / (EXIT_END - EXIT_START));
           const easedExit = easeInOutCubic(exitAnimProgress);
-          const driftDirection = cloud.exitSide === "left" ? -1 : 1;
-          targetExitX = easedExit * EXIT_DRIFT_DISTANCE * driftDirection;
+          targetExitX = easedExit * EXIT_DRIFT_DISTANCE * (cloud.exitSide === "left" ? -1 : 1);
           exitOpacityMultiplier = 1 - easedExit;
         }
         const smoothedExitX = smoothExitXRefs.current[i] + (targetExitX - smoothExitXRefs.current[i]) * EXIT_SMOOTHING;
@@ -377,14 +351,13 @@ export default function CloudAtmosphere() {
         const slideOffset = (1 - slideProgress) * cloud.slideDistance;
         const translateX = (smooth.x * cloud.parallaxMultiplier) + (smoothedExitX * window.innerWidth / 100);
         const translateY = (smooth.y * cloud.parallaxMultiplier) + (slideOffset * window.innerHeight / 100) + smoothedDriftY;
-        const scaleX = cloud.scaleX ?? 1;
+        const scaleX = (cloud.scaleX ?? 1) * (cloud.flip ? -1 : 1);
         const scaleY = cloud.scaleY ?? 1;
-        const flipX = cloud.flip ? -1 : 1;
         const rotate = cloud.rotate ?? 0;
 
-        el.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scaleX * flipX}, ${scaleY}) rotate(${rotate}deg)`;
+        el.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY}) rotate(${rotate}deg)`;
         el.style.opacity = String(newOpacity);
-      });
+      }
 
       animationId = requestAnimationFrame(animate);
     };
@@ -400,11 +373,10 @@ export default function CloudAtmosphere() {
       {CLOUD_LAYERS.map((cloud, index) => {
         const position = cloud.position;
         const mobilePosition = cloud.mobilePosition || cloud.position;
-        const scaleX = cloud.scaleX ?? 1;
+        const scaleX = (cloud.scaleX ?? 1) * (cloud.flip ? -1 : 1);
         const scaleY = cloud.scaleY ?? 1;
-        const flipX = cloud.flip ? -1 : 1;
         const rotate = cloud.rotate ?? 0;
-        const initialTransform = `scale(${scaleX * flipX}, ${scaleY}) rotate(${rotate}deg)`;
+        const initialTransform = `scale(${scaleX}, ${scaleY}) rotate(${rotate}deg)`;
 
         // Mobile animation calculations
         const animationProgress = section4Progress >= cloud.fadeIn
@@ -415,7 +387,7 @@ export default function CloudAtmosphere() {
           : 0;
         const mobileSlideProgress = easeOutCubic(Math.min(1, animationProgress));
         const mobileSlideOffset = (1 - mobileSlideProgress) * cloud.slideDistance;
-        let mobileSection5DriftY = section5Progress > 0
+        const mobileSection5DriftY = section5Progress > 0
           ? -section5Progress * SECTION5_DRIFT_MAX * cloud.section5DriftRate
           : 0;
         let mobileExitDriftX = 0;
@@ -429,6 +401,7 @@ export default function CloudAtmosphere() {
 
         return (
           <div key={index}>
+            {/* Desktop cloud with JS animation */}
             <div
               ref={(el) => { cloudRefs.current[index] = el; }}
               className="hidden md:block absolute will-change-transform aspect-[3/2]"
@@ -443,6 +416,7 @@ export default function CloudAtmosphere() {
             >
               <Image src={cloud.src} alt="" fill className="object-contain select-none" draggable={false} loading="lazy" />
             </div>
+            {/* Mobile cloud with CSS transitions */}
             <div
               className="md:hidden absolute aspect-[3/2]"
               style={{
@@ -451,7 +425,7 @@ export default function CloudAtmosphere() {
                 zIndex: cloud.zIndex,
                 opacity: mobileOpacity,
                 filter: `blur(${cloud.blur}px)`,
-                transform: `translate(${mobileExitDriftX}vw, ${totalYOffset}) scale(${scaleX * flipX}, ${scaleY}) rotate(${rotate}deg)`,
+                transform: `translate(${mobileExitDriftX}vw, ${totalYOffset}) scale(${scaleX}, ${scaleY}) rotate(${rotate}deg)`,
                 transition: "opacity 0.3s ease-out, transform 0.3s ease-out",
               }}
             >
