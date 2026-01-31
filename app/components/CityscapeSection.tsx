@@ -150,7 +150,7 @@ export default function CityscapeSection() {
         style={{ opacity: 0, transform: "translateY(30px)" }}
       >
         <h2
-          className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight"
+          className="text-3xl md:text-3xl lg:text-4xl font-bold tracking-tight"
           style={{
             textShadow:
               "2px 2px 4px rgba(0,0,0,0.9), 0 0 30px rgba(252, 163, 17, 0.3)",

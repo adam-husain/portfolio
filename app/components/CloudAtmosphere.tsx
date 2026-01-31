@@ -43,7 +43,7 @@ const CLOUD_LAYERS: CloudLayer[] = [
   {
     src: "/images/clouds/bunched.webp",
     position: { left: "-50%", bottom: "-5%" },
-    mobilePosition: { left: "-20%", bottom: "-3%" },
+    mobilePosition: { left: "-40%", bottom: "-3%" },
     size: "100vw",
     mobileSize: "180vw",
     opacity: 0.6,
@@ -61,7 +61,7 @@ const CLOUD_LAYERS: CloudLayer[] = [
   {
     src: "/images/clouds/horizontal-2.webp",
     position: { right: "-18%", top: "20%" },
-    mobilePosition: { right: "-25%", top: "25%" },
+    mobilePosition: { right: "-40%", top: "25%" },
     size: "65vw",
     mobileSize: "85vw",
     opacity: 0.45,
@@ -80,7 +80,7 @@ const CLOUD_LAYERS: CloudLayer[] = [
   {
     src: "/images/clouds/vertical.webp",
     position: { left: "5%", top: "30%" },
-    mobilePosition: { left: "0%", top: "35%" },
+    mobilePosition: { left: "-20%", top: "35%" },
     size: "40vw",
     mobileSize: "55vw",
     opacity: 0.4,
@@ -99,7 +99,7 @@ const CLOUD_LAYERS: CloudLayer[] = [
   {
     src: "/images/clouds/bunched.webp",
     position: { left: "-8%", top: "3%" },
-    mobilePosition: { left: "-12%", top: "5%" },
+    mobilePosition: { left: "-30%", top: "5%" },
     size: "50vw",
     mobileSize: "65vw",
     opacity: 0.75,
@@ -118,7 +118,7 @@ const CLOUD_LAYERS: CloudLayer[] = [
   {
     src: "/images/clouds/horizontal.webp",
     position: { left: "0%", bottom: "-8%" },
-    mobilePosition: { left: "-5%", bottom: "-5%" },
+    mobilePosition: { left: "-25%", bottom: "-5%" },
     size: "110vw",
     mobileSize: "140vw",
     opacity: 0.85,
@@ -136,7 +136,7 @@ const CLOUD_LAYERS: CloudLayer[] = [
   {
     src: "/images/clouds/horizontal-2.webp",
     position: { right: "-10%", top: "15%" },
-    mobilePosition: { right: "-15%", top: "20%" },
+    mobilePosition: { right: "-30%", top: "20%" },
     size: "55vw",
     mobileSize: "75vw",
     opacity: 0.7,
@@ -154,7 +154,7 @@ const CLOUD_LAYERS: CloudLayer[] = [
   {
     src: "/images/clouds/vertical.webp",
     position: { left: "10%", top: "40%" },
-    mobilePosition: { left: "5%", top: "45%" },
+    mobilePosition: { left: "-15%", top: "45%" },
     size: "35vw",
     mobileSize: "50vw",
     opacity: 0.65,
@@ -172,7 +172,7 @@ const CLOUD_LAYERS: CloudLayer[] = [
   {
     src: "/images/clouds/bunched.webp",
     position: { right: "3%", bottom: "8%" },
-    mobilePosition: { right: "-2%", bottom: "12%" },
+    mobilePosition: { right: "-10%", bottom: "12%" },
     size: "30vw",
     mobileSize: "45vw",
     opacity: 0.6,
@@ -191,7 +191,7 @@ const CLOUD_LAYERS: CloudLayer[] = [
   {
     src: "/images/clouds/bunched.webp",
     position: { right: "15%", top: "20%" },
-    mobilePosition: { right: "10%", top: "25%" },
+    mobilePosition: { right: "-10%", top: "25%" },
     size: "45vw",
     mobileSize: "60vw",
     opacity: 0.12,

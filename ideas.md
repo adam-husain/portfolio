@@ -84,8 +84,3 @@ Interstellar-inspired descent from cosmos to ground, showcasing design and 3D an
 - Smooth interpolation (no jittery motion)
 - Static images with GSAP transforms (no animated sprites)
 
----
-
-## TODO: Mobile Issues
-- [ ] Rocket shadow not rendering correctly on mobile
-- [ ] Text for all sections needs to be bigger on mobile (find all text rendering locations)

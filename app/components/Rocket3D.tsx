@@ -234,16 +234,21 @@ function RocketShadow({
   // Match rocket rotation exactly
   const rotation = -screenPos.rotation * 180 / Math.PI;
 
+  // Viewport-relative scaling for mobile compatibility
+  const viewportScale = typeof window !== "undefined"
+    ? Math.min(window.innerWidth, window.innerHeight) / 1000
+    : 1;
+
   // Large offset for depth illusion - light from top-right, shadow falls bottom-left
-  const baseOffset = 120 + scrollProgress * 80;
+  const baseOffset = (120 + scrollProgress * 80) * viewportScale;
   const offsetX = baseOffset * 0.6;
   const offsetY = baseOffset * 0.8;
 
   // Scale shadow based on "altitude" over moon
-  const shadowScale = 1.0 + scrollProgress * 0.3;
+  const shadowScale = (1.0 + scrollProgress * 0.3) * viewportScale;
 
   // Blur for soft shadow edge
-  const shadowBlur = 8 + scrollProgress * 6;
+  const shadowBlur = (8 + scrollProgress * 6) * viewportScale;
 
   return (
     <div
@@ -260,8 +265,8 @@ function RocketShadow({
       <div
         className="absolute"
         style={{
-          width: 10,
-          height: 200,
+          width: 10 * viewportScale,
+          height: 200 * viewportScale,
           left: "50%",
           top: "50%",
           transform: "translate(-50%, -50%)",
@@ -274,11 +279,11 @@ function RocketShadow({
       <div
         className="absolute"
         style={{
-          width: 9,
-          height: 50,
+          width: 9 * viewportScale,
+          height: 50 * viewportScale,
           left: "50%",
           top: "50%",
-          transform: "translate(-50%, calc(-50% - 120px))",
+          transform: `translate(-50%, calc(-50% - ${120 * viewportScale}px))`,
           background: "rgba(0, 0, 0, 0.95)",
           borderRadius: "50% 50% 35% 35% / 85% 85% 15% 15%",
         }}
@@ -288,11 +293,11 @@ function RocketShadow({
       <div
         className="absolute"
         style={{
-          width: 6,
-          height: 150,
+          width: 6 * viewportScale,
+          height: 150 * viewportScale,
           left: "50%",
           top: "50%",
-          transform: "translate(calc(-50% - 10px), calc(-50% + 18px))",
+          transform: `translate(calc(-50% - ${10 * viewportScale}px), calc(-50% + ${18 * viewportScale}px))`,
           background: "rgba(0, 0, 0, 0.9)",
           borderRadius: "40% 40% 20% 20% / 3% 3% 2% 2%",
         }}
@@ -302,11 +307,11 @@ function RocketShadow({
       <div
         className="absolute"
         style={{
-          width: 6,
-          height: 150,
+          width: 6 * viewportScale,
+          height: 150 * viewportScale,
           left: "50%",
           top: "50%",
-          transform: "translate(calc(-50% + 10px), calc(-50% + 18px))",
+          transform: `translate(calc(-50% + ${10 * viewportScale}px), calc(-50% + ${18 * viewportScale}px))`,
           background: "rgba(0, 0, 0, 0.9)",
           borderRadius: "40% 40% 20% 20% / 3% 3% 2% 2%",
         }}
@@ -316,11 +321,11 @@ function RocketShadow({
       <div
         className="absolute"
         style={{
-          width: 5,
-          height: 28,
+          width: 5 * viewportScale,
+          height: 28 * viewportScale,
           left: "50%",
           top: "50%",
-          transform: "translate(calc(-50% - 10px), calc(-50% - 62px))",
+          transform: `translate(calc(-50% - ${10 * viewportScale}px), calc(-50% - ${62 * viewportScale}px))`,
           background: "rgba(0, 0, 0, 0.85)",
           borderRadius: "50% 50% 35% 35% / 75% 75% 25% 25%",
         }}
@@ -330,11 +335,11 @@ function RocketShadow({
       <div
         className="absolute"
         style={{
-          width: 5,
-          height: 28,
+          width: 5 * viewportScale,
+          height: 28 * viewportScale,
           left: "50%",
           top: "50%",
-          transform: "translate(calc(-50% + 10px), calc(-50% - 62px))",
+          transform: `translate(calc(-50% + ${10 * viewportScale}px), calc(-50% - ${62 * viewportScale}px))`,
           background: "rgba(0, 0, 0, 0.85)",
           borderRadius: "50% 50% 35% 35% / 75% 75% 25% 25%",
         }}

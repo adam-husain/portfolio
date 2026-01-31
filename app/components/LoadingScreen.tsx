@@ -225,7 +225,7 @@ export function LoadingScreen() {
         {/* Rotating message */}
         <div className="h-6 overflow-hidden">
           <p
-            className="text-white/50 text-xs md:text-sm tracking-wide text-center transition-all duration-400 ease-out max-w-[85vw]"
+            className="text-white/50 text-sm md:text-sm tracking-wide text-center transition-all duration-400 ease-out max-w-[85vw]"
             style={{
               transform: messageState === "entering"
                 ? "translateY(100%)"
