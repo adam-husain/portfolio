@@ -207,8 +207,19 @@ function BalloonModel({
   const gltf = useLoader(GLTFLoader, "/assets/balloon.glb");
   const balloonRef = useRef<THREE.Group>(null);
   const timeRef = useRef(0);
+  const { size } = useThree();
+
+  // Mobile-adjusted positions - bring balloon closer to center on narrow viewports
+  const isMobile = size.width < 768;
+  // On mobile: start at x=-4 (just off left edge), end at x=-1 (left side visible)
+  const adjustedStartX = isMobile ? -4 : config.balloonStartX;
+  const adjustedEndX = isMobile ? -1 : config.balloonEndX;
+  const adjustedStartY = isMobile ? -1.5 : config.balloonStartY;
+  const adjustedEndY = isMobile ? 0.5 : config.balloonEndY;
+  const adjustedScale = isMobile ? config.balloonScale * 0.6 : config.balloonScale;
+
   const smoothedValues = useRef({
-    x: config.balloonStartX,
+    x: adjustedStartX,
     y: config.balloonStartY,
     rotZ: 0,
     scale: 0,
@@ -232,12 +243,12 @@ function BalloonModel({
     // Target position - floats up and out of screen during exit
     // Moves up by 15 units (well above the viewport)
     const exitDriftY = exitAmount * 15;
-    const targetX = THREE.MathUtils.lerp(config.balloonStartX, config.balloonEndX, eased);
-    const targetY = THREE.MathUtils.lerp(config.balloonStartY, config.balloonEndY, eased) + exitDriftY;
+    const targetX = THREE.MathUtils.lerp(adjustedStartX, adjustedEndX, eased);
+    const targetY = THREE.MathUtils.lerp(adjustedStartY, adjustedEndY, eased) + exitDriftY;
 
     // Target scale - shrinks to 50% during exit (1.0 -> 0.5 multiplier)
     const scaleMultiplier = 1 - (exitAmount * 0.5);
-    const targetScale = config.balloonScale * scaleMultiplier;
+    const targetScale = adjustedScale * scaleMultiplier;
 
     // Wobble effect (reduces during exit for a calm departure)
     const wobbleIntensity = 1 - exitAmount;
