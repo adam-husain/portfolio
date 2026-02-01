@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import Image from "next/image";
 import { socialLinks } from "@/lib/site";
+import posthog from "posthog-js";
 
 // ============================================================
 // FOOTER SECTION: CONTACT & SOCIAL
@@ -44,11 +45,28 @@ export default function FooterSection() {
       if (response.ok) {
         setFormStatus("success");
         setFormData({ name: "", email: "", message: "" });
+
+        // Track successful form submission
+        posthog.capture("contact_form_submitted", {
+          message_length: formData.message.length,
+        });
       } else {
         setFormStatus("error");
+
+        // Track form submission error
+        posthog.capture("contact_form_error", {
+          error_type: "response_not_ok",
+          status_code: response.status,
+        });
       }
-    } catch {
+    } catch (error) {
       setFormStatus("error");
+
+      // Track form submission error and capture exception
+      posthog.capture("contact_form_error", {
+        error_type: "network_error",
+      });
+      posthog.captureException(error);
     }
   };
 
@@ -141,6 +159,12 @@ export default function FooterSection() {
                     borderRadius: "8px",
                     transition: "all 0.2s ease",
                   }}
+                  onClick={() => {
+                    posthog.capture("social_link_clicked", {
+                      platform: "linkedin",
+                      link_url: socialLinks.linkedin,
+                    });
+                  }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = "#fca311";
                     const svg = e.currentTarget.querySelector("svg");
@@ -178,6 +202,12 @@ export default function FooterSection() {
                     border: "3px solid #fca311",
                     borderRadius: "8px",
                     transition: "all 0.2s ease",
+                  }}
+                  onClick={() => {
+                    posthog.capture("social_link_clicked", {
+                      platform: "github",
+                      link_url: socialLinks.github,
+                    });
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = "#fca311";

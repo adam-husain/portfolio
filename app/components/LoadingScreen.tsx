@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import gsap from "gsap";
+import posthog from "posthog-js";
 
 // Module-level state (replaces React context)
 interface LoadingState {
@@ -108,6 +109,13 @@ export function LoadingScreen() {
     if ((state.assetsReady || state.minTimeElapsed) && state.minTimeElapsed && !state.isLoaded) {
       const timer = setTimeout(() => {
         updateState({ isLoaded: true });
+
+        // Track loading completed event
+        posthog.capture("loading_completed", {
+          assets_ready: state.assetsReady,
+          viewport_width: window.innerWidth,
+          viewport_height: window.innerHeight,
+        });
       }, 300);
       return () => clearTimeout(timer);
     }
