@@ -70,10 +70,10 @@ export default function MoonReveal() {
   const animationFrameRef = useRef<number | null>(null);
   const isSection3Active = useRef(false);
 
-  // Subscribe to global scroll progress for section 4
+  // Subscribe to global scroll progress
   const scrollProgress = useScrollProgress();
 
-  // Update section4 progress ref for animation loop
+  // Update progress refs for animation loop (section4 kept for potential future use)
   useEffect(() => {
     section4ProgressRef.current = scrollProgress.section4;
   }, [scrollProgress.section4]);
@@ -134,10 +134,15 @@ export default function MoonReveal() {
       current.rotation += (target.rotation - current.rotation) * SMOOTH_FACTOR;
       current.opacity += (target.opacity - current.opacity) * SMOOTH_FACTOR;
 
-      // Calculate fade-out based on section 4 progress
-      const s4p = section4ProgressRef.current;
-      const fadeOut = calculateFadeOut(s4p, SECTION3_TIMING.fadeOut.start, SECTION3_TIMING.fadeOut.end);
+      // Calculate fade-out based on section 3 progress (fade from 60% to 100% of section 3)
+      const s3p = section3ProgressRef.current;
+      const fadeOut = calculateFadeOut(s3p, 0.6, 1.0);
       target.opacity = fadeOut;
+
+      // Also fade out the section 2 glow
+      if (glow) {
+        glow.style.opacity = String(fadeOut);
+      }
 
       // Apply fade: move moon further off-screen and scale down
       const fadeOffsetX = (1 - current.opacity) * -200; // Move left

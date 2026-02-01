@@ -5,6 +5,7 @@ import Satellite3D from "./components/Satellite3D";
 import ReentrySection from "./components/ReentrySection";
 import CloudscapeSection from "./components/CloudscapeSection";
 import CityscapeSection from "./components/CityscapeSection";
+import FooterSection from "./components/FooterSection";
 import MyFace from "./components/MyFace";
 import ParallaxBackground from "./components/ParallaxBackground";
 import CloudAtmosphere from "./components/CloudAtmosphere";
@@ -91,6 +92,9 @@ export default function Home() {
 
       {/* Section 6: Cityscape - Arrival (futuristic skyline emerges) */}
       <CityscapeSection />
+
+      {/* Footer: Contact form and social links */}
+      <FooterSection />
 
       {/* Noscript fallback for SEO */}
       <noscript>
