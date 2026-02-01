@@ -182,6 +182,16 @@ body {
   }
 }
 
+/* Typewriter cursor blink animation */
+@keyframes cursor-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.typewriter-cursor {
+  animation: cursor-blink 1s step-end infinite;
+}
+
 /* Mobile touch improvements */
 @media (max-width: 767px) {
   /* Ensure no horizontal overflow on mobile */

@@ -94,6 +94,16 @@ export const SECTION4_TIMING = {
 };
 
 // ============================================================
+// SECTION 6: CITYSCAPE - TYPEWRITER EFFECT
+// ============================================================
+export const TYPEWRITER_TIMING = {
+  typeSpeed: 50,           // ms per character when typing
+  deleteSpeed: 80,         // ms per character when deleting (faster than typing)
+  pauseAfterType: 2000,    // ms to pause after word is fully typed
+  pauseAfterDelete: 300,   // ms to pause after word is fully deleted
+};
+
+// ============================================================
 // CROSS-SECTION FADE TIMING
 // ============================================================
 export const FADE_TIMING = {

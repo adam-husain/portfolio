@@ -4,8 +4,22 @@ import { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { updateSection6Progress } from "@/app/lib/scrollProgress";
+import TypewriterText from "./TypewriterText";
 
 gsap.registerPlugin(ScrollTrigger);
+
+const TYPEWRITER_WORDS = [
+  "cool",
+  "awesome",
+  "bombastic",
+  "stellar",
+  "legendary",
+  "magnificent",
+  "spectacular",
+  "phenomenal",
+  "incredible",
+  "extraordinary",
+];
 
 // ============================================================
 // SECTION 6: CITYSCAPE — ARRIVAL
@@ -41,7 +55,6 @@ export default function CityscapeSection() {
           const textProgress = Math.max(0, Math.min(1, (self.progress - 0.4) / 0.3));
           const easedText = 1 - Math.pow(1 - textProgress, 2);
           textRef.current.style.opacity = String(easedText);
-          textRef.current.style.transform = `translateY(${(1 - easedText) * 30}px)`;
         }
       },
     });
@@ -58,21 +71,20 @@ export default function CityscapeSection() {
       {/* Text overlay */}
       <div
         ref={textRef}
-        className="absolute left-1/2 -translate-x-1/2 text-white text-center z-10 pointer-events-none px-4"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[60px] text-white text-center z-10 pointer-events-none px-4"
         style={{
           opacity: 0,
-          transform: "translateY(30px)",
-          bottom: "calc(34.66vw + 5vh)",
         }}
       >
         <h2
-          className="text-3xl md:text-3xl lg:text-4xl font-bold tracking-tight"
+          className="text-3xl md:text-3xl lg:text-4xl font-bold tracking-tight whitespace-nowrap"
           style={{
             textShadow:
               "2px 2px 4px rgba(0,0,0,0.9), 0 0 30px rgba(252, 163, 17, 0.3)",
           }}
         >
-          Have you decided to look <span className="text-primary">cool</span>
+          Have you decided to look{" "}
+          <TypewriterText words={TYPEWRITER_WORDS} className="text-primary" />
         </h2>
       </div>
 
