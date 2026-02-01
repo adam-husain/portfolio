@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Raleway } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import LoadingOverlay from "./components/LoadingOverlay";
 import JsonLd from "./components/JsonLd";
 import { siteConfig } from "@/lib/site";
@@ -83,6 +84,7 @@ export default function RootLayout({
         />
         <LoadingOverlay />
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );
