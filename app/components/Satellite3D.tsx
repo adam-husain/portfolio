@@ -292,7 +292,7 @@ export default function Satellite3D() {
               "2px 2px 4px rgba(0,0,0,0.8), -1px -1px 0 rgba(255,255,255,0.1), 0 0 40px rgba(255,255,255,0.2)",
           }}
         >
-          Tell a story with your website
+          Let me help you tell your story
         </h2>
         <p
           className="text-base md:text-lg lg:text-xl text-white/80 leading-relaxed"
