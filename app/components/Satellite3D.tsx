@@ -10,7 +10,7 @@ import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.j
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { updateSection3Progress, useScrollProgress } from "@/app/lib/scrollProgress";
-import { SECTION3_TIMING, FADE_TIMING, calculateFadeOut, mapRange } from "@/app/lib/animationTiming";
+import { SECTION3_TIMING, FADE_TIMING, calculateFadeOut } from "@/app/lib/animationTiming";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -213,8 +213,10 @@ export default function Satellite3D() {
   const textRef = useRef<HTMLDivElement>(null);
   const scrollProgress = useScrollProgress();
 
-  // Update section4 progress ref for 3D scene
-  section4ProgressRef.current = scrollProgress.section4;
+  // Update section4 progress ref for 3D scene in effect to avoid updating refs during render
+  useEffect(() => {
+    section4ProgressRef.current = scrollProgress.section4;
+  }, [scrollProgress.section4]);
 
   // Get section4 progress for fade-out calculation (text)
   const section4FadeOut = calculateFadeOut(

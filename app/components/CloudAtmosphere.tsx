@@ -280,7 +280,8 @@ export default function CloudAtmosphere() {
   }, []);
 
   useEffect(() => {
-    setMounted(true);
+    // Use requestAnimationFrame to defer state update and avoid synchronous setState warning
+    const frameId = requestAnimationFrame(() => setMounted(true));
     const onMouseMove = (e: MouseEvent) => handlePointerMove(e.clientX, e.clientY);
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches[0]) handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
@@ -289,6 +290,7 @@ export default function CloudAtmosphere() {
     window.addEventListener("mousemove", onMouseMove, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: true });
     return () => {
+      cancelAnimationFrame(frameId);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("touchmove", onTouchMove);
     };

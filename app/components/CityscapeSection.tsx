@@ -90,6 +90,7 @@ export default function CityscapeSection() {
 
       {/* City SVG container - static at bottom, fills width */}
       <div className="relative w-full z-0 overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/images/city.svg"
           alt="Futuristic cityscape"

@@ -66,14 +66,6 @@ const DEFAULT_ASTEROID_PATHS: AsteroidPath[] = [
 ];
 
 // ============================================================
-// FLAME CONFIG
-// ============================================================
-const FLAME_CONFIG = {
-  baseSize: 60,
-  glowSize: 80,
-};
-
-// ============================================================
 // ASTEROID COMPONENT (3D)
 // ============================================================
 const ASTEROID_MODELS = ["/assets/asteroid_1.glb", "/assets/asteroid_2.glb"];
@@ -96,17 +88,25 @@ function AsteroidModel({
   const positionRef = useRef(new THREE.Vector3());
   // Rotation multipliers - how many full rotations per scroll through section
   // Slower rotation for a more natural tumbling feel
-  const rotationMultiplier = useRef({
-    x: 0.4 + Math.random() * 0.4,  // ~0.4-0.8 rotations (was 2-4)
-    y: 0.3 + Math.random() * 0.3,  // ~0.3-0.6 rotations (was 1.5-3)
-    z: 0.2 + Math.random() * 0.2,  // ~0.2-0.4 rotations (was 1-2)
-  });
-  // Random offset so asteroids start at different angles
-  const rotationOffset = useRef({
-    x: Math.random() * Math.PI * 2,
-    y: Math.random() * Math.PI * 2,
-    z: Math.random() * Math.PI * 2,
-  });
+  // Use index-based deterministic values to avoid impure Math.random() calls
+  const rotationMultiplier = useMemo(() => {
+    // Create varied but deterministic values based on asteroid index
+    const seed = (index + 1) * 0.618; // Golden ratio offset
+    return {
+      x: 0.4 + (seed % 1) * 0.4,  // ~0.4-0.8 rotations
+      y: 0.3 + ((seed * 1.3) % 1) * 0.3,  // ~0.3-0.6 rotations
+      z: 0.2 + ((seed * 1.7) % 1) * 0.2,  // ~0.2-0.4 rotations
+    };
+  }, [index]);
+  // Rotation offset so asteroids start at different angles
+  const rotationOffset = useMemo(() => {
+    const seed = (index + 1) * 2.718; // Euler's number offset
+    return {
+      x: (seed % 1) * Math.PI * 2,
+      y: ((seed * 1.5) % 1) * Math.PI * 2,
+      z: ((seed * 2.3) % 1) * Math.PI * 2,
+    };
+  }, [index]);
   // Smoothed values for position and rotation
   const smoothedPosition = useRef({ x: path.startX, y: path.startY });
   const smoothedRotation = useRef({ x: 0, y: 0, z: 0 });
@@ -136,8 +136,8 @@ function AsteroidModel({
     asteroidRef.current.scale.setScalar(path.scale);
 
     // Scroll-driven tumbling rotation with smoothing
-    const rm = rotationMultiplier.current;
-    const ro = rotationOffset.current;
+    const rm = rotationMultiplier;
+    const ro = rotationOffset;
     const targetRotX = ro.x + eased * Math.PI * 2 * rm.x;
     const targetRotY = ro.y + eased * Math.PI * 2 * rm.y;
     const targetRotZ = ro.z + eased * Math.PI * 2 * rm.z;
@@ -325,178 +325,14 @@ function Scene({
 }
 
 // ============================================================
-// FLAME EFFECTS - Intense in-place burn (like rocket booster)
+// FLAME EFFECTS
 // ============================================================
-function AsteroidFlame({
-  x,
-  y,
-  rotation,
-  intensity,
-  scale,
-}: {
-  x: number;
-  y: number;
-  rotation: number;
-  intensity: number;
-  scale: number;
-}) {
-  const flameRotation = (-rotation * 180) / Math.PI + 90;
-
-  // Scale flame relative to model scale (0.2 is the reference scale)
-  const scaleMultiplier = scale / 0.2;
-
-  // Dynamic flame sizing based on intensity and model scale
-  const baseSize = FLAME_CONFIG.baseSize * (0.8 + intensity * 0.6) * scaleMultiplier;
-  const flameHeight = baseSize * (1.2 + intensity * 0.8);
-  const flameWidth = baseSize * (0.5 + intensity * 0.2);
-  const glowSize = FLAME_CONFIG.glowSize * (0.8 + intensity * 0.6) * scaleMultiplier;
-
-  // Flame colors - more intense = brighter/whiter core
-  const coreColor = `rgba(255, ${240 - intensity * 20}, ${200 - intensity * 50}, 0.95)`;
-  const midColor = `rgba(255, ${180 - intensity * 30}, 80, 0.85)`;
-  const outerColor = `rgba(255, ${120 - intensity * 20}, 30, 0.6)`;
-
-  return (
-    <div
-      className="absolute pointer-events-none"
-      style={{
-        left: x,
-        top: y,
-        transform: `translate(-50%, -50%) rotate(${flameRotation}deg)`,
-        transformOrigin: "center center",
-      }}
-    >
-      {/* Outer glow */}
-      <div
-        className="absolute rounded-full"
-        style={{
-          width: glowSize * 2,
-          height: glowSize * 2.5,
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -30%)",
-          background: `radial-gradient(ellipse 100% 120% at 50% 30%,
-            rgba(255, 180, 80, ${0.5 * intensity}) 0%,
-            rgba(255, 120, 40, ${0.3 * intensity}) 40%,
-            transparent 70%)`,
-          filter: `blur(${12 + intensity * 8}px)`,
-        }}
-      />
-
-      {/* Main flame body */}
-      <div
-        className="absolute"
-        style={{
-          width: flameWidth,
-          height: flameHeight,
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -20%)",
-          background: `linear-gradient(to bottom,
-            ${coreColor} 0%,
-            ${midColor} 35%,
-            ${outerColor} 65%,
-            transparent 100%)`,
-          borderRadius: "40% 40% 50% 50% / 25% 25% 75% 75%",
-          filter: `blur(${2 + intensity}px)`,
-        }}
-      />
-
-      {/* Bright inner core */}
-      <div
-        className="absolute"
-        style={{
-          width: flameWidth * 0.4,
-          height: flameHeight * 0.45,
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -15%)",
-          background: `linear-gradient(to bottom,
-            rgba(255,255,250,1) 0%,
-            rgba(255,245,200,0.95) 35%,
-            rgba(255,220,150,0.7) 65%,
-            transparent 100%)`,
-          borderRadius: "45% 45% 50% 50% / 30% 30% 70% 70%",
-          filter: `blur(${1 + intensity * 0.5}px)`,
-        }}
-      />
-
-      {/* Secondary flame wisps */}
-      <div
-        className="absolute"
-        style={{
-          width: flameWidth * 0.7,
-          height: flameHeight * 0.7,
-          left: "50%",
-          top: "50%",
-          transform: "translate(-60%, -10%)",
-          background: `linear-gradient(to bottom,
-            rgba(255,200,100,0.8) 0%,
-            rgba(255,150,50,0.5) 50%,
-            transparent 100%)`,
-          borderRadius: "50% 40% 50% 50% / 30% 25% 75% 70%",
-          filter: `blur(${3 + intensity}px)`,
-        }}
-      />
-
-      <div
-        className="absolute"
-        style={{
-          width: flameWidth * 0.6,
-          height: flameHeight * 0.65,
-          left: "50%",
-          top: "50%",
-          transform: "translate(-40%, -5%)",
-          background: `linear-gradient(to bottom,
-            rgba(255,180,80,0.7) 0%,
-            rgba(255,130,40,0.4) 50%,
-            transparent 100%)`,
-          borderRadius: "40% 50% 50% 50% / 25% 30% 70% 75%",
-          filter: `blur(${3 + intensity}px)`,
-        }}
-      />
-
-      {/* Hot spots / flickering embers */}
-      {intensity > 0.3 && (
-        <>
-          <div
-            className="absolute animate-pulse"
-            style={{
-              width: 6 + intensity * 4,
-              height: 6 + intensity * 4,
-              left: "50%",
-              top: "50%",
-              transform: `translate(${-50 + (Math.random() - 0.5) * 30}%, ${30 + intensity * 20}%)`,
-              background: "rgba(255, 220, 150, 0.9)",
-              borderRadius: "50%",
-              filter: "blur(2px)",
-              boxShadow: "0 0 8px rgba(255, 200, 100, 0.8)",
-            }}
-          />
-          <div
-            className="absolute animate-pulse"
-            style={{
-              width: 4 + intensity * 3,
-              height: 4 + intensity * 3,
-              left: "50%",
-              top: "50%",
-              transform: `translate(${-50 + (Math.random() - 0.5) * 40}%, ${50 + intensity * 25}%)`,
-              background: "rgba(255, 180, 100, 0.7)",
-              borderRadius: "50%",
-              filter: "blur(2px)",
-              animationDelay: "0.15s",
-            }}
-          />
-        </>
-      )}
-    </div>
-  );
-}
-
 function FlameEffects({
+  flameCount,
   asteroidPositionsRef,
   scrollProgressRef,
 }: {
+  flameCount: number;
   asteroidPositionsRef: React.MutableRefObject<{ x: number; y: number; visible: boolean; rotation: number; scale: number }[]>;
   scrollProgressRef: React.MutableRefObject<number>;
 }) {
@@ -535,10 +371,10 @@ function FlameEffects({
     return () => cancelAnimationFrame(animationFrameRef.current);
   }, [asteroidPositionsRef, scrollProgressRef]);
 
-  // Pre-render flame elements for each asteroid path
+  // Pre-render flame elements for each asteroid path using static count
   return (
     <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-hidden">
-      {asteroidPositionsRef.current.map((_, idx) => (
+      {Array.from({ length: flameCount }, (_, idx) => (
         <FlameElement
           key={idx}
           ref={(el) => { flameRefs.current[idx] = el; }}
@@ -822,6 +658,7 @@ export default function ReentrySection() {
       {/* Flame effects overlay */}
       <div className="fixed inset-0 z-[32] pointer-events-none">
         <FlameEffects
+          flameCount={asteroidPaths.length}
           asteroidPositionsRef={asteroidPositionsRef}
           scrollProgressRef={scrollProgressRef}
         />

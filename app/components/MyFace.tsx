@@ -55,8 +55,8 @@ const PROXIMITY_THRESHOLD_INNER = 9; // % of container width
 const PROXIMITY_THRESHOLD_OUTER = 27; // % of container width
 
 // Far distance (eyes stop tracking when cursor is too far)
-const MAX_TRACKING_DISTANCE_INNER = 100; // % of container width - start fading at this distance
-const MAX_TRACKING_DISTANCE_OUTER = 150; // % of container width - fully neutral beyond this
+const MAX_TRACKING_DISTANCE_INNER = 250; // % of container width - start fading at this distance
+const MAX_TRACKING_DISTANCE_OUTER = 400; // % of container width - fully neutral beyond this
 
 // 3D parallax for face layers
 const LAYER_MOVEMENT = 0.36; // % of container width - max layer movement
@@ -526,7 +526,8 @@ export default function MyFace() {
     };
 
     const isMobile = window.matchMedia("(pointer: coarse)").matches;
-    if (isMobile) setFallbackPosition();
+    // Use requestAnimationFrame to defer state update and avoid synchronous setState warning
+    if (isMobile) requestAnimationFrame(() => setFallbackPosition());
 
     const setupGyroscope = async () => {
       if (!isMobile) return;
@@ -557,21 +558,6 @@ export default function MyFace() {
 
   // Common transform for all face layers
   const layerTransform = `translate(${animationState.layer.x}px, ${animationState.layer.y}px) perspective(1000px) rotateX(${animationState.perspective.rotateX}deg) rotateY(${animationState.perspective.rotateY}deg)`;
-
-  // Glint clip-path helper (hard edges for persistent glint)
-  const getGlintClipPath = (pos: number, isRight: boolean) => {
-    const offset = isRight ? 50 : 0;
-    const min = isRight ? 50 : 0;
-    const max = isRight ? 100 : 50;
-    const clamp = (v: number) => Math.min(max, Math.max(min, v));
-
-    return `polygon(
-      ${clamp(offset + pos + GLINT_SKEW)}% 0%,
-      ${clamp(offset + pos + GLINT_WIDTH + GLINT_SKEW)}% 0%,
-      ${clamp(offset + pos + GLINT_WIDTH)}% 100%,
-      ${clamp(offset + pos)}% 100%
-    )`;
-  };
 
   // Animated glint mask helper (feathered left/right edges, sharp top/bottom)
   // Uses a linear gradient perpendicular to the diagonal stripe direction
@@ -622,8 +608,10 @@ export default function MyFace() {
         </div>
 
         {/* LAYER 2: EYEBALLS - Animated 3D eyeballs */}
-        <Eyeball position={LEFT_EYE} offset={animationState.leftEye} size={EYEBALL_SIZE} />
-        <Eyeball position={RIGHT_EYE} offset={animationState.rightEye} size={EYEBALL_SIZE} />
+        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform", clipPath: "inset(0 0 30% 0)" }}>
+          <Eyeball position={LEFT_EYE} offset={animationState.leftEye} size={EYEBALL_SIZE} />
+          <Eyeball position={RIGHT_EYE} offset={animationState.rightEye} size={EYEBALL_SIZE} />
+        </div>
 
         {/* LAYER 3: OVERLAY - Face with eye socket cutouts (masks eyeballs) */}
         <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform", clipPath: "inset(0 0 30% 0)" }}>

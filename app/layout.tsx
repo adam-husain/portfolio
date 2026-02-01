@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Raleway } from "next/font/google";
 import LoadingOverlay from "./components/LoadingOverlay";
+import JsonLd from "./components/JsonLd";
+import { siteConfig } from "@/lib/site";
 import "./globals.css";
 
 const raleway = Raleway({
@@ -10,6 +12,7 @@ const raleway = Raleway({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteConfig.url),
   title: "Adam Husain | Software Engineer & Creative Designer",
   description:
     "Adam Husain is a Software Engineer and Creative Designer with expertise in Web/Mobile Development, Machine Learning, and Cloud Technologies. Explore his journey from freelance work to leading tech teams.",
@@ -25,9 +28,13 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Adam Husain" }],
   creator: "Adam Husain",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
+    url: siteConfig.url,
     title: "Adam Husain | Software Engineer & Creative Designer",
     description:
       "Software Engineer and Creative Designer crafting innovative digital experiences.",
@@ -42,6 +49,11 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+    },
   },
 };
 
@@ -54,6 +66,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="prefetch" href="/assets/rocket.glb" as="fetch" crossOrigin="anonymous" />
+        <JsonLd />
       </head>
       <body
         className={`${raleway.variable} ${raleway.className} antialiased`}

@@ -10,6 +10,7 @@ import MyFace from "./components/MyFace";
 import ParallaxBackground from "./components/ParallaxBackground";
 import CloudAtmosphere from "./components/CloudAtmosphere";
 import ScrollNormalizer from "./components/ScrollNormalizer";
+import NoscriptContent from "./components/NoscriptContent";
 import { siteConfig } from "@/lib/site";
 
 export default function Home() {
@@ -97,13 +98,7 @@ export default function Home() {
       <FooterSection />
 
       {/* Noscript fallback for SEO */}
-      <noscript>
-        <div className="noscript-content">
-          <h1>{siteConfig.name}</h1>
-          <p>{siteConfig.tagline}</p>
-          <p>{siteConfig.description}</p>
-        </div>
-      </noscript>
+      <NoscriptContent />
     </>
   );
 }

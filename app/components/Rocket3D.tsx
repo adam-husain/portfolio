@@ -454,7 +454,7 @@ function BoosterFlame({
           }}
         />
 
-        {/* Flickering particles */}
+        {/* Flickering particles - use fixed offsets for stable rendering */}
         {movementIntensity > 0.2 && (
           <>
             <div
@@ -462,7 +462,7 @@ function BoosterFlame({
               style={{
                 width: 4 + movementIntensity * 4,
                 height: 4 + movementIntensity * 4,
-                left: `calc(50% + ${(Math.random() - 0.5) * flameWidth}px)`,
+                left: `calc(50% + ${0.15 * flameWidth}px)`,
                 top: flameHeight * 0.5,
                 background: "rgba(255, 200, 100, 0.8)",
                 borderRadius: "50%",
@@ -474,7 +474,7 @@ function BoosterFlame({
               style={{
                 width: 3 + movementIntensity * 3,
                 height: 3 + movementIntensity * 3,
-                left: `calc(50% + ${(Math.random() - 0.5) * flameWidth}px)`,
+                left: `calc(50% + ${-0.2 * flameWidth}px)`,
                 top: flameHeight * 0.7,
                 background: "rgba(255, 150, 50, 0.6)",
                 borderRadius: "50%",
@@ -513,8 +513,15 @@ export default function Rocket3D() {
 
   const screenPosRef = useRef(screenPos);
   const scrollProgressValRef = useRef(scrollProgress);
-  screenPosRef.current = screenPos;
-  scrollProgressValRef.current = scrollProgress;
+
+  // Sync refs in effect to avoid updating refs during render
+  useEffect(() => {
+    screenPosRef.current = screenPos;
+  }, [screenPos]);
+
+  useEffect(() => {
+    scrollProgressValRef.current = scrollProgress;
+  }, [scrollProgress]);
 
   const handleReady = useCallback(() => {
     setIsReady(true);
