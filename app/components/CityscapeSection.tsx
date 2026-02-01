@@ -77,7 +77,7 @@ export default function CityscapeSection() {
         }}
       >
         <h2
-          className="text-3xl md:text-3xl lg:text-4xl font-bold tracking-tight whitespace-nowrap"
+          className="text-3xl md:text-3xl lg:text-4xl font-bold tracking-tight md:whitespace-nowrap"
           style={{
             textShadow:
               "2px 2px 4px rgba(0,0,0,0.9), 0 0 30px rgba(252, 163, 17, 0.3)",
