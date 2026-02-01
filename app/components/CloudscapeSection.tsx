@@ -85,19 +85,15 @@ export default function CloudscapeSection() {
       {/* Text overlay */}
       <div
         ref={textRef}
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white text-center z-[40] pointer-events-none px-4"
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-black text-center z-[40] pointer-events-none px-4"
         style={{ opacity: 0, transform: "translateY(calc(-50% + 40px))" }}
       >
         <h2
           className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight mb-4"
-          style={{
-            textShadow:
-              "2px 2px 4px rgba(0,0,0,0.9), 0 0 40px rgba(255,255,255,0.2)",
-          }}
         >
-          Sometimes you need to slow down
+          Open up your mind to the 
           <br />
-          to see clearly
+           endless possibilities
         </h2>
       </div>
     </>

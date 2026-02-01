@@ -840,23 +840,21 @@ export default function ReentrySection() {
               "2px 2px 4px rgba(0,0,0,0.9), 0 0 30px rgba(252, 163, 17, 0.4)",
           }}
         >
-          You are not alone
+          It&apos;s not easy looking this good
         </h2>
         <p
-          className="text-sm md:text-base lg:text-lg text-white/85 leading-relaxed"
+          className="text-sm md:text-base lg:text-lg text-black leading-relaxed"
           style={{
             textShadow: "1px 1px 3px rgba(0,0,0,0.95)",
           }}
         >
-          The world feels heavy sometimes. The noise, the uncertainty, the weight of it all.
-          <br className="hidden md:block" />
-          <span className="md:hidden"> </span>
-          But even in freefall, there&apos;s a quiet truth —
-          <br className="hidden md:block" />
-          <span className="md:hidden"> </span>
-          <em className="text-primary/90">we&apos;re all descending together.</em>
+          Good things aren&apos;t meant to be easy.
           <br />
-          And somehow, that makes the fall a little lighter.
+          If it was, EVERYBODY would be doing it.
+          <br />
+          <span className="bg-[#fca311] text-[#000814] !px-1 !py-0.5 rounded font-semibold inline-block mt-2">
+            BUT THEY AREN&apos;T
+          </span>
         </p>
       </div>
 

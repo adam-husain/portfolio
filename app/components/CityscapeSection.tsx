@@ -72,7 +72,7 @@ export default function CityscapeSection() {
               "2px 2px 4px rgba(0,0,0,0.9), 0 0 30px rgba(252, 163, 17, 0.3)",
           }}
         >
-          Every descent has a <span className="text-primary">destination</span>
+          Have you decided to look <span className="text-primary">cool</span>
         </h2>
       </div>
 

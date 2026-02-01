@@ -290,7 +290,7 @@ export default function Satellite3D() {
               "2px 2px 4px rgba(0,0,0,0.8), -1px -1px 0 rgba(255,255,255,0.1), 0 0 40px rgba(255,255,255,0.2)",
           }}
         >
-          Do not go gentle into that good night
+          Tell a story with your website
         </h2>
         <p
           className="text-base md:text-lg lg:text-xl text-white/80 leading-relaxed"
@@ -298,9 +298,12 @@ export default function Satellite3D() {
             textShadow: "1px 1px 3px rgba(0,0,0,0.9)",
           }}
         >
-          For old age should burn and rave at close of day.
+          Stand out from the crowd.
           <br />
-          Rage, rage against the dying of the light.
+          Make people talk about{" "}
+          <span className="bg-[#fca311] text-[#000814] !px-1 !py-0.5 rounded font-semibold">
+            YOU
+          </span>
         </p>
       </div>
     </>
