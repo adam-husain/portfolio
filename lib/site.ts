@@ -3,16 +3,16 @@ export const siteConfig = {
   tagline: "Software Engineer | Creative Designer",
   greeting: "Hello, I'm",
   description:
-    "Experienced software engineer specializing in web and mobile development, machine learning, and cloud technologies. Currently working at Nation.dev, building innovative digital experiences with React, TypeScript, and modern web technologies.",
+    "Experienced software engineer specializing in web and mobile development, machine learning, and cloud technologies.",
 
   // SEO fields
   url: "https://adamhusain.me",
 
-  bio: "Adam Husain is a Software Engineer and Creative Designer with expertise in web and mobile development, machine learning, and cloud technologies. Currently building innovative digital experiences at Nation.dev using React, TypeScript, and modern web technologies.",
+  bio: "Adam Husain is a Software Engineer and Creative Designer with expertise in web and mobile development, machine learning, and cloud technologies.",
 
   currentJob: {
-    title: "Software Engineer",
-    company: "Nation.dev",
+    title: "CTO & Co-Founder",
+    company: "Auth Hero",
   },
 
   skills: {
