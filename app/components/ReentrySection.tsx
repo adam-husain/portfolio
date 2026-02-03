@@ -5,11 +5,15 @@ import { Canvas, useFrame, useThree, useLoader } from "@react-three/fiber";
 import { Center } from "@react-three/drei";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { updateSection4Progress, useScrollProgress, mapRange } from "@/app/lib/scrollProgress";
 
 gsap.registerPlugin(ScrollTrigger);
+
+let ktx2Loader: KTX2Loader | null = null;
 
 interface ReentryConfig {
   sectionHeight: string;
@@ -82,9 +86,19 @@ function AsteroidModel({
   onPositionUpdate: (index: number, x: number, y: number, visible: boolean, rotation: number, scale: number) => void;
 }) {
   const modelPath = ASTEROID_MODELS[index % ASTEROID_MODELS.length];
-  const gltf = useLoader(GLTFLoader, modelPath);
+  const { camera, size, gl } = useThree();
+  const gltf = useLoader(GLTFLoader, modelPath, (loader) => {
+    if (!ktx2Loader) {
+      ktx2Loader = new KTX2Loader();
+      ktx2Loader.setTranscoderPath(
+        "https://cdn.jsdelivr.net/gh/pmndrs/drei-assets/basis/"
+      );
+    }
+    ktx2Loader.detectSupport(gl);
+    loader.setKTX2Loader(ktx2Loader);
+    loader.setMeshoptDecoder(MeshoptDecoder);
+  });
   const asteroidRef = useRef<THREE.Group>(null);
-  const { camera, size } = useThree();
   const positionRef = useRef(new THREE.Vector3());
   // Rotation multipliers - how many full rotations per scroll through section
   // Slower rotation for a more natural tumbling feel
@@ -204,10 +218,20 @@ function BalloonModel({
   config: ReentryConfig;
   section5Progress: React.MutableRefObject<number>;
 }) {
-  const gltf = useLoader(GLTFLoader, "/assets/balloon.glb");
+  const { size, gl } = useThree();
+  const gltf = useLoader(GLTFLoader, "/assets/balloon.glb", (loader) => {
+    if (!ktx2Loader) {
+      ktx2Loader = new KTX2Loader();
+      ktx2Loader.setTranscoderPath(
+        "https://cdn.jsdelivr.net/gh/pmndrs/drei-assets/basis/"
+      );
+    }
+    ktx2Loader.detectSupport(gl);
+    loader.setKTX2Loader(ktx2Loader);
+    loader.setMeshoptDecoder(MeshoptDecoder);
+  });
   const balloonRef = useRef<THREE.Group>(null);
   const timeRef = useRef(0);
-  const { size } = useThree();
 
   // Mobile-adjusted positions - bring balloon closer to center on narrow viewports
   const isMobile = size.width < 768;

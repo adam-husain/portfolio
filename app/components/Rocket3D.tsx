@@ -1,15 +1,20 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useGLTF, Clone, Center } from "@react-three/drei";
+import { Canvas, useFrame, useThree, useLoader } from "@react-three/fiber";
+import { Clone, Center } from "@react-three/drei";
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { signalReady } from "./LoadingScreen";
 import { useScrollProgress, updateSection2Progress } from "@/app/lib/scrollProgress";
 
 gsap.registerPlugin(ScrollTrigger);
+
+let ktx2Loader: KTX2Loader | null = null;
 
 interface RocketConfig {
   scale: number;
@@ -76,12 +81,23 @@ function RocketModel({
   onReady: () => void;
   config: RocketConfig;
 }) {
-  const { scene } = useGLTF("/assets/rocket.glb");
+  const { camera, size, gl } = useThree();
+  const gltf = useLoader(GLTFLoader, "/assets/rocket.glb", (loader) => {
+    if (!ktx2Loader) {
+      ktx2Loader = new KTX2Loader();
+      ktx2Loader.setTranscoderPath(
+        "https://cdn.jsdelivr.net/gh/pmndrs/drei-assets/basis/"
+      );
+    }
+    ktx2Loader.detectSupport(gl);
+    loader.setKTX2Loader(ktx2Loader);
+    loader.setMeshoptDecoder(MeshoptDecoder);
+  });
+  const scene = gltf.scene;
   const rocketRef = useRef<THREE.Group>(null);
   const idleTimeRef = useRef(0);
   const boosterVectorRef = useRef(new THREE.Vector3());
   const hasInitialized = useRef(false);
-  const { camera, size } = useThree();
 
   // Smoothed values for interpolation
   const smoothedX = useRef(config.startX);
@@ -676,5 +692,3 @@ export default function Rocket3D() {
     </>
   );
 }
-
-useGLTF.preload("/assets/rocket.glb");
