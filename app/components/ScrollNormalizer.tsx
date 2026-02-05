@@ -27,8 +27,9 @@ export default function ScrollNormalizer() {
       ignoreMobileResize: true,
     });
 
-    // Enable scroll normalization
-    // This intercepts native scroll behavior and handles it on the JS thread
+    // Enable scroll normalization for wheel events only
+    // This intercepts wheel behavior and handles it on the JS thread
+    // Touch events are left native for smooth mobile scrolling
     ScrollTrigger.normalizeScroll({
       // Allow nested scrollable elements to still work
       allowNestedScroll: true,
@@ -37,8 +38,9 @@ export default function ScrollNormalizer() {
       // Momentum function: controls how long momentum continues after flick-scrolling
       // Lower values = less momentum, which can help with precision touchpad issues
       momentum: (self: { velocityY: number }) => Math.min(2, self.velocityY / 1000),
-      // Event types to normalize: touch for mobile, wheel for mouse/touchpad
-      type: "touch,wheel",
+      // Only normalize wheel events (mouse/touchpad), not touch
+      // This preserves native smooth scrolling on mobile devices
+      type: "wheel",
     });
 
     // Disable GSAP's lag smoothing to prevent delays in scroll animations
