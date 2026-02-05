@@ -418,9 +418,9 @@ export default function CloudAtmosphere() {
             >
               <Image src={cloud.src} alt="" fill className="object-contain select-none" draggable={false} loading="lazy" />
             </div>
-            {/* Mobile cloud with CSS transitions */}
+            {/* Mobile cloud - no transform transition to prevent jitter during fast scroll */}
             <div
-              className="md:hidden absolute aspect-[3/2]"
+              className="md:hidden absolute aspect-[3/2] will-change-[transform,opacity]"
               style={{
                 ...mobilePosition,
                 width: cloud.mobileSize,
@@ -428,7 +428,7 @@ export default function CloudAtmosphere() {
                 opacity: mobileOpacity,
                 filter: `blur(${cloud.blur}px)`,
                 transform: `translate(${mobileExitDriftX}vw, ${totalYOffset}) scale(${scaleX}, ${scaleY}) rotate(${rotate}deg)`,
-                transition: "opacity 0.3s ease-out, transform 0.3s ease-out",
+                transition: "opacity 0.3s ease-out",
               }}
             >
               <Image src={cloud.src} alt="" fill className="object-contain select-none" draggable={false} loading="lazy" />

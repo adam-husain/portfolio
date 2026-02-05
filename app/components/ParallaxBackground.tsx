@@ -136,7 +136,7 @@ export default function ParallaxBackground() {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-0" aria-hidden="true">
+    <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true">
       {/* Base gradient background */}
       <div
         ref={gradientRef}

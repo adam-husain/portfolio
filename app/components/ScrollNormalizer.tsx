@@ -27,9 +27,15 @@ export default function ScrollNormalizer() {
       ignoreMobileResize: true,
     });
 
-    // Enable scroll normalization for wheel events only
+    // Skip scroll normalization on touch/mobile devices
+    // normalizeScroll is only needed for Windows Precision Touchpads (desktop)
+    const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+    if (isTouchDevice) {
+      return;
+    }
+
+    // Enable scroll normalization for wheel events only (desktop)
     // This intercepts wheel behavior and handles it on the JS thread
-    // Touch events are left native for smooth mobile scrolling
     ScrollTrigger.normalizeScroll({
       // Allow nested scrollable elements to still work
       allowNestedScroll: true,
@@ -39,7 +45,6 @@ export default function ScrollNormalizer() {
       // Lower values = less momentum, which can help with precision touchpad issues
       momentum: (self: { velocityY: number }) => Math.min(2, self.velocityY / 1000),
       // Only normalize wheel events (mouse/touchpad), not touch
-      // This preserves native smooth scrolling on mobile devices
       type: "wheel",
     });
 
