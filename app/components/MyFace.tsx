@@ -594,7 +594,7 @@ export default function MyFace() {
       <div className={`relative w-full h-full transition-opacity duration-300 ${imagesLoaded ? "opacity-100" : "opacity-0"}`}>
 
         {/* LAYER 1: BASE - Face with blank eye areas */}
-        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform", clipPath: "inset(0 0 30% 0)" }}>
+        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform", clipPath: "inset(0 0 35% 0)" }}>
           <Image
             src={FACE_LAYERS.BASE}
             alt="Adam"
@@ -608,13 +608,13 @@ export default function MyFace() {
         </div>
 
         {/* LAYER 2: EYEBALLS - Animated 3D eyeballs */}
-        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform", clipPath: "inset(0 0 30% 0)" }}>
+        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform", clipPath: "inset(0 0 35% 0)" }}>
           <Eyeball position={LEFT_EYE} offset={animationState.leftEye} size={EYEBALL_SIZE} />
           <Eyeball position={RIGHT_EYE} offset={animationState.rightEye} size={EYEBALL_SIZE} />
         </div>
 
         {/* LAYER 3: OVERLAY - Face with eye socket cutouts (masks eyeballs) */}
-        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform", clipPath: "inset(0 0 30% 0)" }}>
+        <div style={{ position: "absolute", inset: 0, transform: layerTransform, willChange: "transform", clipPath: "inset(0 0 35% 0)" }}>
           <Image
             src={FACE_LAYERS.OVERLAY}
             alt=""
