@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import posthog from "posthog-js";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 // ============================================
 // FACE LAYER SYSTEM
@@ -312,6 +316,9 @@ export default function MyFace() {
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const loadedCountRef = useRef(0);
   const hasTrackedInteraction = useRef(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const section2ProgressRef = useRef(0);
+  const section2SmoothedRef = useRef(0);
 
   // Combined animation state - single state object for batched updates
   const initialGlintPos = -GLINT_WIDTH - GLINT_SKEW;
@@ -366,6 +373,19 @@ export default function MyFace() {
   // Animation loop - empty deps, compares against ref not state
   useEffect(() => {
     const animate = () => {
+      // Smooth section 2 progress (same factor as MoonReveal: 0.2)
+      section2SmoothedRef.current +=
+        (section2ProgressRef.current - section2SmoothedRef.current) * 0.2;
+      const s2p = section2SmoothedRef.current;
+
+      // Scroll-driven face position (synced with moon reveal section 2)
+      if (wrapperRef.current) {
+        const scrollUp = s2p * 120;
+        const faceOpacity = Math.max(0, 1 - s2p * 2);
+        wrapperRef.current.style.transform = `translateX(-50%) translateY(calc(35% - ${scrollUp}vh))`;
+        wrapperRef.current.style.opacity = String(faceOpacity);
+      }
+
       const c = current.current;
       const t = targets.current;
       const last = lastRendered.current;
@@ -556,6 +576,21 @@ export default function MyFace() {
     };
   }, [handlePointerMove, setFallbackPosition]);
 
+  // ScrollTrigger: scroll face up as moon section approaches
+  useEffect(() => {
+    const trigger = ScrollTrigger.create({
+      trigger: "#moon-section",
+      start: "top bottom",
+      end: "top top",
+      scrub: true,
+      onUpdate: (self) => {
+        section2ProgressRef.current = self.progress;
+      },
+    });
+
+    return () => trigger.kill();
+  }, []);
+
   // Common transform for all face layers
   const layerTransform = `translate(${animationState.layer.x}px, ${animationState.layer.y}px) perspective(1000px) rotateX(${animationState.perspective.rotateX}deg) rotateY(${animationState.perspective.rotateY}deg)`;
 
@@ -588,9 +623,18 @@ export default function MyFace() {
 
   return (
     <div
-      ref={containerRef}
-      className="absolute inset-0 pointer-events-none select-none"
+      ref={wrapperRef}
+      className="fixed bottom-0 left-1/2 z-[15] pointer-events-none select-none"
+      style={{
+        height: "min(100vh, 140vw)",
+        aspectRatio: "550 / 800",
+        transform: "translateX(-50%) translateY(35%)",
+      }}
     >
+      <div
+        ref={containerRef}
+        className="absolute inset-0"
+      >
       <div className={`relative w-full h-full transition-opacity duration-300 ${imagesLoaded ? "opacity-100" : "opacity-0"}`}>
 
         {/* LAYER 1: BASE - Face with blank eye areas */}
@@ -720,6 +764,7 @@ export default function MyFace() {
       {!imagesLoaded && (
         <div className="absolute inset-0 animate-pulse bg-secondary/20 rounded-full" style={{ width: "100%", height: "100%" }} />
       )}
+      </div>
     </div>
   );
 }

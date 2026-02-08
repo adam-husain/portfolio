@@ -58,17 +58,8 @@ export default function Home() {
       {/* Volumetric clouds around the balloon in section 4 */}
       <CloudAtmosphere />
 
-      {/* My face that tracks my eye. Positioned at bottom, half visible */}
-      <div
-        className="absolute bottom-0 left-1/2 z-[15] pointer-events-none"
-        style={{
-          transform: "translateX(-50%) translateY(35%)",
-          height: "min(100vh, 140vw)",
-          aspectRatio: "550 / 800",
-        }}
-      >
-        <MyFace />
-      </div>
+      {/* My face - fixed, scrolls up with moon reveal */}
+      <MyFace />
 
       {/* Moon section */}
       <section

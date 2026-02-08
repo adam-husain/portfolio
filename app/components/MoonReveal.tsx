@@ -36,8 +36,9 @@ const MOBILE_CONFIG = {
   },
 };
 
-// Smoothing factor for moon movement (lower = smoother but laggier)
+// Smoothing factors (lower = smoother but laggier)
 const SMOOTH_FACTOR = 0.12;
+const SECTION2_SMOOTH_FACTOR = 0.2;
 
 // Helper to detect mobile portrait orientation
 const isMobilePortrait = () =>
@@ -53,6 +54,8 @@ export default function MoonReveal() {
   // Refs for smooth animation
   const section3ProgressRef = useRef(0);
   const section4ProgressRef = useRef(0);
+  const section2TargetProgress = useRef(0);
+  const section2SmoothedProgress = useRef(0);
   const targetMoonState = useRef({
     left: 0,
     top: 0,
@@ -117,8 +120,63 @@ export default function MoonReveal() {
     };
     targetMoonState.current = { ...currentMoonState.current };
 
-    // Smooth animation loop for section 3
+    // Smooth animation loop
     const animateSmooth = () => {
+      // --- Section 2 smoothing (runs every frame) ---
+      section2SmoothedProgress.current +=
+        (section2TargetProgress.current - section2SmoothedProgress.current) * SECTION2_SMOOTH_FACTOR;
+      const p2 = section2SmoothedProgress.current;
+      const s3p = section3ProgressRef.current;
+
+      // Mask tracks smoothed section 2 progress
+      mask.style.setProperty("--mask-progress", `${lerp(0, 120, p2)}%`);
+
+      if (s3p <= 0) {
+        isSection3Active.current = false;
+
+        const isMobile = isMobilePortrait();
+        const startY = isMobile ? MOBILE_CONFIG.section2.startYPercent : CONFIG.section2.startYPercent;
+        const endY = isMobile ? MOBILE_CONFIG.section2.endYPercent : CONFIG.section2.endYPercent;
+        const yPercent = lerp(startY, endY, p2);
+        const brightness = lerp(CONFIG.section2.startBrightness, CONFIG.section2.endBrightness, p2);
+
+        moon.style.width = "max(150vw, 150vh)";
+        moon.style.height = "max(150vw, 150vh)";
+        moon.style.left = "50%";
+        moon.style.bottom = "0";
+        moon.style.top = "auto";
+        moon.style.transform = `translateX(-50%) translateY(${yPercent}%) rotate(0deg)`;
+        moon.style.filter = `brightness(${brightness})`;
+        moon.style.opacity = "1";
+        mask.style.opacity = "1";
+
+        const baseSize = getBaseSize();
+        currentMoonState.current = {
+          left: window.innerWidth / 2,
+          top: window.innerHeight + baseSize * (yPercent / 100 - 0.5),
+          size: baseSize,
+          rotation: 0,
+          opacity: 1,
+        };
+        targetMoonState.current = { ...currentMoonState.current };
+
+        // Glow
+        const easedP = 1 - Math.pow(1 - p2, 2);
+        const glowY = lerp(100, 30, easedP);
+        glow.style.setProperty("--glow-y", `${glowY}%`);
+        glow.style.opacity = String(easedP);
+
+        // Text
+        if (text) {
+          const textP = mapRange(p2, 0.5, 0.8);
+          const easedTextP = 1 - Math.pow(1 - textP, 2);
+          const textY = lerp(30, 0, easedTextP);
+          text.style.opacity = String(Math.max(0, easedTextP));
+          text.style.transform = `translateY(${textY}px)`;
+        }
+      }
+
+      // --- Section 3 smoothing ---
       if (!isSection3Active.current) {
         animationFrameRef.current = requestAnimationFrame(animateSmooth);
         return;
@@ -135,7 +193,6 @@ export default function MoonReveal() {
       current.opacity += (target.opacity - current.opacity) * SMOOTH_FACTOR;
 
       // Calculate fade-out based on section 3 progress (fade from 60% to 100% of section 3)
-      const s3p = section3ProgressRef.current;
       const fadeOut = calculateFadeOut(s3p, 0.6, 1.0);
       target.opacity = fadeOut;
 
@@ -187,66 +244,7 @@ export default function MoonReveal() {
       end: "top top",
       scrub: true,
       onUpdate: (self) => {
-        const p = self.progress;
-        const s3p = section3ProgressRef.current;
-
-        // Mask: 0% -> 120%
-        mask.style.setProperty("--mask-progress", `${lerp(0, 120, p)}%`);
-
-        // Only apply section 2 transforms if section 3 hasn't started
-        if (s3p <= 0) {
-          isSection3Active.current = false;
-
-          // Use mobile config for portrait orientations
-          const isMobile = isMobilePortrait();
-          const startY = isMobile ? MOBILE_CONFIG.section2.startYPercent : CONFIG.section2.startYPercent;
-          const endY = isMobile ? MOBILE_CONFIG.section2.endYPercent : CONFIG.section2.endYPercent;
-
-          const yPercent = lerp(startY, endY, p);
-          const brightness = lerp(CONFIG.section2.startBrightness, CONFIG.section2.endBrightness, p);
-
-          moon.style.width = "max(150vw, 150vh)";
-          moon.style.height = "max(150vw, 150vh)";
-          moon.style.left = "50%";
-          moon.style.bottom = "0";
-          moon.style.top = "auto";
-          moon.style.transform = `translateX(-50%) translateY(${yPercent}%) rotate(0deg)`;
-          moon.style.filter = `brightness(${brightness})`;
-          moon.style.opacity = "1"; // Reset opacity when in section 2
-          mask.style.opacity = "1";
-
-          // Update current state for smooth transition
-          const baseSize = getBaseSize();
-          currentMoonState.current = {
-            left: window.innerWidth / 2,
-            top: window.innerHeight + baseSize * (yPercent / 100 - 0.5),
-            size: baseSize,
-            rotation: 0,
-            opacity: 1,
-          };
-          targetMoonState.current = { ...currentMoonState.current };
-        }
-
-        // Glow effect - position based on scroll, opacity handled by CSS transition
-        const easedP = 1 - Math.pow(1 - p, 2);
-        const glowY = lerp(100, 30, easedP);
-        glow.style.setProperty("--glow-y", `${glowY}%`);
-        // Set base opacity (will be overridden by section 3 fade)
-        if (s3p <= 0) {
-          glow.style.opacity = String(easedP);
-        }
-
-        // Text: fade out when section 3 progress reaches 0.5
-        if (text) {
-          const textP = mapRange(p, 0.5, 0.8);
-          const easedTextP = 1 - Math.pow(1 - textP, 2);
-          const textY = lerp(30, 0, easedTextP);
-          // Fade out when section 3 progress passes 0.5
-          const section3FadeOut = Math.max(0, 1 - mapRange(s3p, 0.5, 0.5));
-          const textOpacity = easedTextP * section3FadeOut;
-          text.style.opacity = String(Math.max(0, textOpacity));
-          text.style.transform = `translateY(${textY}px)`;
-        }
+        section2TargetProgress.current = self.progress;
       },
     });
 
