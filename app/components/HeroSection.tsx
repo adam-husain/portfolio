@@ -21,7 +21,7 @@ export default function HeroSection() {
     >
       <div className="relative mx-auto w-full max-w-6xl px-6 pt-28 pb-10 md:pb-20">
         {/* Copy */}
-        <div className="relative z-0">
+        <div className="relative z-10 md:z-0">
           <p className="section-eyebrow mb-6">{siteConfig.greeting}</p>
           <h1 className="font-display text-[clamp(4rem,2rem+10.5vw,12.5rem)] leading-[0.9] font-bold tracking-[-0.03em] text-foreground">
             Adam
@@ -58,12 +58,14 @@ export default function HeroSection() {
           </div>
         </div>
 
-        {/* Portrait: overflows the right edge, overlaps the title tail,
-            bottom glued to the section border */}
-        <div className="pointer-events-none relative z-10 mt-4 -mr-10 ml-auto w-[78vw] max-w-[360px] translate-y-4 sm:-mt-10 md:absolute md:bottom-0 md:-right-12 md:mt-0 md:w-[48vw] md:max-w-[620px] md:translate-y-8 lg:-right-20">
+        {/* Portrait: on mobile it sits behind the title, faded into the
+            background so the copy stays readable. On md+ it overflows the
+            right edge, overlaps the title tail, bottom glued to the
+            section border */}
+        <div className="pointer-events-none absolute top-20 -right-10 z-0 w-[78vw] max-w-[360px] md:top-auto md:bottom-0 md:-right-12 md:z-10 md:w-[48vw] md:max-w-[620px] md:translate-y-8 lg:-right-20">
           <div
             aria-hidden="true"
-            className="absolute inset-x-0 bottom-0 mx-auto h-[70%] w-[85%] rounded-full bg-[radial-gradient(circle,rgba(246,170,28,0.26)_0%,rgba(148,27,12,0.16)_45%,transparent_70%)] blur-2xl"
+            className="absolute inset-x-0 bottom-0 mx-auto hidden h-[70%] w-[85%] rounded-full bg-[radial-gradient(circle,rgba(246,170,28,0.26)_0%,rgba(148,27,12,0.16)_45%,transparent_70%)] blur-2xl md:block"
           />
           <Image
             src="/images/mine/adam-hero.png"
@@ -72,7 +74,7 @@ export default function HeroSection() {
             height={1195}
             priority
             sizes="(max-width: 768px) 78vw, 48vw"
-            className="relative w-full"
+            className="relative w-full opacity-40 [mask-image:linear-gradient(to_bottom,black_55%,transparent_95%)] md:opacity-100 md:[mask-image:none]"
           />
         </div>
       </div>
