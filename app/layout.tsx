@@ -1,31 +1,44 @@
-import type { Metadata } from "next";
-import { Raleway } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Bricolage_Grotesque, Instrument_Sans, Space_Grotesk } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import LoadingOverlay from "./components/LoadingOverlay";
 import JsonLd from "./components/JsonLd";
 import { siteConfig } from "@/lib/site";
 import "./globals.css";
 
-const raleway = Raleway({
-  variable: "--font-raleway",
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const instrumentSans = Instrument_Sans({
+  variable: "--font-instrument-sans",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
-  title: "Adam Husain | Software Engineer & Creative Designer",
-  description:
-    "Adam Husain is a Software Engineer and Creative Designer with expertise in Web/Mobile Development, Machine Learning, and Cloud Technologies. Explore his journey from freelance work to leading tech teams.",
+  title: "Adam Husain | Software Engineer",
+  description: siteConfig.description,
   keywords: [
     "Adam Husain",
     "Software Engineer",
-    "AI Specialist",
+    "AI Engineer",
     "Full Stack Developer",
+    "Mobile Developer",
     "Machine Learning",
     "React",
+    "Next.js",
     "TypeScript",
     "Python",
+    "TEDx Speaker",
   ],
   authors: [{ name: "Adam Husain" }],
   creator: "Adam Husain",
@@ -36,16 +49,14 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: siteConfig.url,
-    title: "Adam Husain | Software Engineer & Creative Designer",
-    description:
-      "Software Engineer and Creative Designer crafting innovative digital experiences.",
+    title: "Adam Husain | Software Engineer",
+    description: siteConfig.description,
     siteName: "Adam Husain Portfolio",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Adam Husain | Software Engineer & Creative Designer",
-    description:
-      "Software Engineer and Creative Designer crafting innovative digital experiences.",
+    title: "Adam Husain | Software Engineer",
+    description: siteConfig.description,
   },
   robots: {
     index: true,
@@ -58,6 +69,11 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#150400",
+  colorScheme: "dark",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -66,23 +82,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="prefetch" href="/assets/rocket.glb" as="fetch" crossOrigin="anonymous" />
         <JsonLd />
       </head>
       <body
-        className={`${raleway.variable} ${raleway.className} antialiased`}
+        className={`${bricolage.variable} ${instrumentSans.variable} ${spaceGrotesk.variable} ${instrumentSans.className} antialiased`}
       >
-        {/* Immediate SSR blocker - prevents flash before JS hydrates */}
-        <div
-          id="initial-loading-blocker"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 99,
-            background: "linear-gradient(to bottom, #000000 0%, #0a0a14 50%, #000814 100%)",
-          }}
-        />
-        <LoadingOverlay />
         {children}
         <SpeedInsights />
       </body>

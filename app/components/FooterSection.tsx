@@ -81,103 +81,50 @@ export default function FooterSection() {
     }
   };
 
+  const inputClasses =
+    "w-full px-4 py-3 bg-surface/15 border-2 border-surface/60 rounded-lg text-foreground text-base outline-none transition-colors focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50";
+
   return (
     <footer
       id="footer-section"
       aria-label="Contact and Social Links"
-      style={{
-        position: "relative",
-        zIndex: 10,
-        backgroundColor: "#000000",
-        padding: "4rem 1.5rem",
-      }}
+      className="relative z-10 bg-[#0c0200] px-6 py-16"
     >
-      <div style={{ maxWidth: "72rem", margin: "0 auto" }}>
+      <div className="mx-auto max-w-6xl">
         <div className="footer-grid">
           {/* Left Column: Profile + Social */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
+          <div className="flex flex-col items-center justify-center">
             {/* Profile Photo Container */}
-            <div style={{ position: "relative", marginBottom: "2rem" }}>
+            <div className="relative mb-8">
               {/* Profile Photo - Square with rounded corners */}
-              <div
-                style={{
-                  width: "256px",
-                  height: "256px",
-                  borderRadius: "16px",
-                  overflow: "hidden",
-                  border: "3px solid #fca311",
-                  boxShadow: "0 0 40px rgba(252, 163, 17, 0.3)",
-                }}
-                className="w-48 h-48 md:w-64 md:h-64"
-              >
+              <div className="w-48 h-48 md:w-64 md:h-64 overflow-hidden rounded-2xl border-[3px] border-primary shadow-[0_0_40px_rgba(246,170,28,0.3)]">
                 <Image
                   src="/images/mine/profile.jpg"
                   alt="Adam Husain"
                   width={256}
                   height={256}
-                  style={{
-                    width: "120%",
-                    height: "140%",
-                    transform: "translateY(-10%)",
-                    objectFit: "cover",
-                  }}
-                  priority
+                  className="w-[120%] h-[140%] -translate-y-[10%] object-cover"
                 />
               </div>
 
               {/* Social Links - Name Placards */}
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: "-24px",
-                  right: "16px",
-                  display: "flex",
-                  gap: "8px",
-                }}
-              >
+              <div className="absolute -bottom-6 right-4 flex gap-2">
                 {/* LinkedIn Placard */}
                 <a
                   href={socialLinks.linkedin}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="LinkedIn Profile"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: "48px",
-                    height: "48px",
-                    backgroundColor: "#22223b",
-                    border: "3px solid #fca311",
-                    borderRadius: "8px",
-                    transition: "all 0.2s ease",
-                  }}
+                  className="group flex h-12 w-12 items-center justify-center rounded-lg border-[3px] border-primary bg-secondary transition-colors duration-200 hover:bg-primary focus-visible:bg-primary"
                   onClick={() => {
                     posthog.capture("social_link_clicked", {
                       platform: "linkedin",
                       link_url: socialLinks.linkedin,
                     });
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#fca311";
-                    const svg = e.currentTarget.querySelector("svg");
-                    if (svg) svg.style.color = "#22223b";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "#22223b";
-                    const svg = e.currentTarget.querySelector("svg");
-                    if (svg) svg.style.color = "#ffffff";
-                  }}
                 >
                   <svg
-                    style={{ width: "24px", height: "24px", color: "#ffffff", transition: "color 0.2s ease" }}
+                    className="h-6 w-6 text-white transition-colors duration-200 group-hover:text-secondary group-focus-visible:text-secondary"
                     fill="currentColor"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
@@ -192,36 +139,16 @@ export default function FooterSection() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="GitHub Profile"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: "48px",
-                    height: "48px",
-                    backgroundColor: "#22223b",
-                    border: "3px solid #fca311",
-                    borderRadius: "8px",
-                    transition: "all 0.2s ease",
-                  }}
+                  className="group flex h-12 w-12 items-center justify-center rounded-lg border-[3px] border-primary bg-secondary transition-colors duration-200 hover:bg-primary focus-visible:bg-primary"
                   onClick={() => {
                     posthog.capture("social_link_clicked", {
                       platform: "github",
                       link_url: socialLinks.github,
                     });
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#fca311";
-                    const svg = e.currentTarget.querySelector("svg");
-                    if (svg) svg.style.color = "#22223b";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "#22223b";
-                    const svg = e.currentTarget.querySelector("svg");
-                    if (svg) svg.style.color = "#ffffff";
-                  }}
                 >
                   <svg
-                    style={{ width: "24px", height: "24px", color: "#ffffff", transition: "color 0.2s ease" }}
+                    className="h-6 w-6 text-white transition-colors duration-200 group-hover:text-secondary group-focus-visible:text-secondary"
                     fill="currentColor"
                     viewBox="0 0 24 24"
                     aria-hidden="true"
@@ -239,27 +166,13 @@ export default function FooterSection() {
 
           {/* Right Column: Contact Form */}
           <div>
-            <h2
-              style={{
-                color: "#ffffff",
-                fontSize: "1.875rem",
-                fontWeight: "bold",
-                marginBottom: "2rem",
-              }}
-            >
-              Contact Me
-            </h2>
-            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            <h2 className="section-heading mb-8 text-foreground">Contact Me</h2>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
               {/* Name Input */}
               <div>
                 <label
                   htmlFor="name"
-                  style={{
-                    display: "block",
-                    color: "rgba(255, 255, 255, 0.8)",
-                    marginBottom: "0.5rem",
-                    fontSize: "0.875rem",
-                  }}
+                  className="mb-2 block text-sm text-muted-foreground"
                 >
                   Name
                 </label>
@@ -272,23 +185,7 @@ export default function FooterSection() {
                   onChange={handleInputChange}
                   disabled={formStatus === "loading"}
                   placeholder="Your name"
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem 1rem",
-                    backgroundColor: "rgba(255, 255, 255, 0.05)",
-                    border: "2px solid rgba(255, 255, 255, 0.2)",
-                    borderRadius: "8px",
-                    color: "#ffffff",
-                    fontSize: "1rem",
-                    outline: "none",
-                    transition: "border-color 0.2s ease",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "#fca311";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
-                  }}
+                  className={inputClasses}
                 />
               </div>
 
@@ -296,12 +193,7 @@ export default function FooterSection() {
               <div>
                 <label
                   htmlFor="email"
-                  style={{
-                    display: "block",
-                    color: "rgba(255, 255, 255, 0.8)",
-                    marginBottom: "0.5rem",
-                    fontSize: "0.875rem",
-                  }}
+                  className="mb-2 block text-sm text-muted-foreground"
                 >
                   Email
                 </label>
@@ -314,23 +206,7 @@ export default function FooterSection() {
                   onChange={handleInputChange}
                   disabled={formStatus === "loading"}
                   placeholder="your@email.com"
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem 1rem",
-                    backgroundColor: "rgba(255, 255, 255, 0.05)",
-                    border: "2px solid rgba(255, 255, 255, 0.2)",
-                    borderRadius: "8px",
-                    color: "#ffffff",
-                    fontSize: "1rem",
-                    outline: "none",
-                    transition: "border-color 0.2s ease",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "#fca311";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
-                  }}
+                  className={inputClasses}
                 />
               </div>
 
@@ -338,12 +214,7 @@ export default function FooterSection() {
               <div>
                 <label
                   htmlFor="message"
-                  style={{
-                    display: "block",
-                    color: "rgba(255, 255, 255, 0.8)",
-                    marginBottom: "0.5rem",
-                    fontSize: "0.875rem",
-                  }}
+                  className="mb-2 block text-sm text-muted-foreground"
                 >
                   Message
                 </label>
@@ -356,24 +227,7 @@ export default function FooterSection() {
                   onChange={handleInputChange}
                   disabled={formStatus === "loading"}
                   placeholder="What would you like to say?"
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem 1rem",
-                    backgroundColor: "rgba(255, 255, 255, 0.05)",
-                    border: "2px solid rgba(255, 255, 255, 0.2)",
-                    borderRadius: "8px",
-                    color: "#ffffff",
-                    fontSize: "1rem",
-                    outline: "none",
-                    resize: "none",
-                    transition: "border-color 0.2s ease",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "#fca311";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
-                  }}
+                  className={`${inputClasses} resize-none`}
                 />
               </div>
 
@@ -381,48 +235,31 @@ export default function FooterSection() {
               <button
                 type="submit"
                 disabled={formStatus === "loading"}
-                style={{
-                  width: "100%",
-                  padding: "0.75rem 1.5rem",
-                  backgroundColor: "#fca311",
-                  color: "#22223b",
-                  fontWeight: "600",
-                  fontSize: "1rem",
-                  borderRadius: "8px",
-                  border: "none",
-                  cursor: formStatus === "loading" ? "not-allowed" : "pointer",
-                  opacity: formStatus === "loading" ? 0.5 : 1,
-                  transition: "opacity 0.2s ease",
-                }}
+                className="w-full cursor-pointer rounded-lg bg-primary px-6 py-3 text-base font-semibold text-secondary transition hover:brightness-95 active:brightness-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0200]"
               >
                 {formStatus === "loading" ? "Sending..." : "Send Message"}
               </button>
 
-              {/* Status Messages */}
-              {formStatus === "success" && (
-                <p style={{ color: "#4ade80", textAlign: "center" }}>
-                  Message sent successfully! I&apos;ll get back to you soon.
-                </p>
-              )}
-              {formStatus === "error" && (
-                <p style={{ color: "#f87171", textAlign: "center" }}>
-                  Something went wrong. Please try again.
-                </p>
-              )}
+              {/* Status Messages (live region for screen readers) */}
+              <div role="status" aria-live="polite" aria-atomic="true">
+                {formStatus === "success" && (
+                  <p className="text-center text-green-400">
+                    Message sent successfully! I&apos;ll get back to you soon.
+                  </p>
+                )}
+                {formStatus === "error" && (
+                  <p className="text-center text-red-400">
+                    Something went wrong. Please try again.
+                  </p>
+                )}
+              </div>
             </form>
           </div>
         </div>
 
         {/* Copyright */}
-        <div
-          style={{
-            marginTop: "4rem",
-            paddingTop: "2rem",
-            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-            textAlign: "center",
-          }}
-        >
-          <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "0.875rem" }}>
+        <div className="mt-16 border-t border-foreground/10 pt-8 text-center">
+          <p className="text-sm text-foreground/60">
             {new Date().getFullYear()} Adam Husain. All rights reserved.
           </p>
         </div>
