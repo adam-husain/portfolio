@@ -33,7 +33,7 @@ function ProjectBlock({ project }: { project: CareerProject }) {
             {project.name}
           </h3>
           {project.status && (
-            <span className="rounded-full border border-accent/60 px-3 py-0.5 font-utility text-xs tracking-[0.08em] uppercase text-muted-foreground">
+            <span className="angled-sep font-utility text-xs tracking-[0.08em] uppercase text-muted-foreground">
               {project.status}
             </span>
           )}
@@ -47,11 +47,9 @@ function ProjectBlock({ project }: { project: CareerProject }) {
           {project.description}
         </p>
 
-        <ul className="mt-5 flex flex-wrap gap-2" aria-label="Technologies">
+        <ul className="tech-list mt-5" aria-label="Technologies">
           {project.technologies.map((tech) => (
-            <li key={tech} className="tech-chip">
-              {tech}
-            </li>
+            <li key={tech}>{tech}</li>
           ))}
         </ul>
 
@@ -71,18 +69,20 @@ function ProjectBlock({ project }: { project: CareerProject }) {
 
       {/* Imagery: hero shot, then dashboards, then a phone strip */}
       <div className="mt-8 space-y-4">
-        <Reveal>
-          <div className="overflow-hidden rounded-xl border border-surface/60 bg-surface/15">
-            <Image
-              src={project.heroImage.src}
-              alt={project.heroImage.alt}
-              width={project.heroImage.width}
-              height={project.heroImage.height}
-              sizes="(max-width: 768px) 100vw, 896px"
-              className="w-full"
-            />
-          </div>
-        </Reveal>
+        {project.heroImage && (
+          <Reveal>
+            <div className="overflow-hidden rounded-xl border border-surface/60 bg-surface/15">
+              <Image
+                src={project.heroImage.src}
+                alt={project.heroImage.alt}
+                width={project.heroImage.width}
+                height={project.heroImage.height}
+                sizes="(max-width: 768px) 100vw, 896px"
+                className="w-full"
+              />
+            </div>
+          </Reveal>
+        )}
 
         {project.extraImages && (
           <Reveal>
@@ -146,7 +146,6 @@ export default function CareerProjectsSection() {
       className="relative bg-background"
     >
       <div className="mx-auto max-w-6xl px-6 py-24 md:py-32">
-        <p className="section-eyebrow mb-4">Career work</p>
         <h2 id="work-heading" className="section-heading text-foreground">
           Products I have shipped
         </h2>

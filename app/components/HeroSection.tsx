@@ -22,7 +22,9 @@ export default function HeroSection() {
       <div className="relative mx-auto w-full max-w-6xl px-6 pt-28 pb-10 md:pb-20">
         {/* Copy */}
         <div className="relative z-10 md:z-0">
-          <p className="section-eyebrow mb-6">{siteConfig.greeting}</p>
+          <p className="mb-6 font-utility text-[0.8125rem] font-medium tracking-[0.3em] uppercase text-primary">
+            {siteConfig.greeting}
+          </p>
           <h1 className="font-display text-[clamp(4rem,2rem+10.5vw,12.5rem)] leading-[0.9] font-bold tracking-[-0.03em] text-foreground">
             Adam
             <span className="block md:pl-[18%]">Husain</span>

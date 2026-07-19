@@ -16,61 +16,68 @@ export default function ExperienceSection() {
       className="relative bg-background"
     >
       <div className="max-w-6xl mx-auto px-6 py-24 md:py-32">
-        <p className="section-eyebrow mb-4">Where I&apos;ve been</p>
         <h2 id="experience-heading" className="section-heading text-foreground">
-          Experience
+          Formal work
         </h2>
 
-        <ol className="mt-12 md:mt-16 space-y-6">
+        <ol className="mt-12 divide-y divide-accent/30 md:mt-16">
           {siteConfig.experience.map((job) => (
             <li
               key={`${job.role}-${job.company}`}
-              className="relative rounded-xl border border-surface/60 bg-surface/10 p-6 md:p-8 transition-colors hover:border-primary/40"
+              className="grid gap-2 py-8 md:grid-cols-[11rem_1fr] md:gap-10 md:py-10"
             >
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-                <h3 className="text-xl md:text-2xl font-semibold text-foreground">
+              <div>
+                {job.period && (
+                  <p className="font-utility text-sm tracking-[0.15em] uppercase text-primary">
+                    {job.period}
+                  </p>
+                )}
+                {job.location && (
+                  <p className="mt-1 font-utility text-xs tracking-[0.08em] uppercase text-muted">
+                    {job.location}
+                  </p>
+                )}
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-foreground md:text-2xl">
                   {job.role}
                   <span className="text-primary"> @ {job.company}</span>
                 </h3>
-                {job.period && (
-                  <span className="font-utility text-sm tracking-[0.15em] uppercase text-muted-foreground">
-                    {job.period}
-                  </span>
+                {job.summary && (
+                  <p className="mt-3 max-w-2xl text-base text-muted-foreground">
+                    {job.summary}
+                  </p>
                 )}
               </div>
-              {job.location && (
-                <p className="mt-1 font-utility text-xs tracking-[0.08em] uppercase text-muted">
-                  {job.location}
-                </p>
-              )}
-              {job.summary && (
-                <p className="mt-3 max-w-2xl text-base text-muted-foreground">
-                  {job.summary}
-                </p>
-              )}
             </li>
           ))}
         </ol>
 
         <h3 className="section-subheading mt-16 text-foreground">Education</h3>
-        <div className="mt-6 grid gap-6 sm:grid-cols-2">
+        <div className="mt-6 divide-y divide-accent/30">
           {siteConfig.education.map((edu) => (
             <div
               key={edu.degree}
-              className="rounded-xl border border-surface/60 bg-surface/10 p-6"
+              className="grid gap-2 py-6 md:grid-cols-[11rem_1fr] md:gap-10"
             >
-              <p className="text-lg font-semibold text-foreground">
-                {edu.degree}
-              </p>
-              <p className="text-primary">{edu.institution}</p>
-              {edu.period && (
-                <p className="mt-1 font-utility text-xs tracking-[0.08em] uppercase text-muted">
-                  {edu.period}
+              <div>
+                {edu.period && (
+                  <p className="font-utility text-sm tracking-[0.15em] uppercase text-primary">
+                    {edu.period}
+                  </p>
+                )}
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-foreground">
+                  {edu.degree}
+                  <span className="text-primary"> @ {edu.institution}</span>
                 </p>
-              )}
-              {edu.detail && (
-                <p className="mt-3 text-sm text-muted-foreground">{edu.detail}</p>
-              )}
+                {edu.detail && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {edu.detail}
+                  </p>
+                )}
+              </div>
             </div>
           ))}
         </div>

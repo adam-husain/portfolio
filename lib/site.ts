@@ -30,7 +30,7 @@ export type CareerProject = {
   technologies: string[];
   link?: string;
   status?: string;
-  heroImage: ProjectImage;
+  heroImage?: ProjectImage;
   mobileImages?: ProjectImage[];
   extraImages?: ProjectImage[];
 };
@@ -138,7 +138,7 @@ export const siteConfig = {
       slug: "smartsenior",
       name: "SmartSenior",
       year: "2025",
-      role: "Solo Frontend Developer (web), Solo Developer (mobile) at Nation.dev",
+      role: "Frontend Developer (web), Developer (mobile) at Nation.dev",
       description:
         "Discount and benefits club for people over 55 in Sweden. I maintain the Next.js web application as the sole frontend developer and built the iOS and Android app solo with Expo and React Native, both backed by an ASP.NET API with a Python AI recommendation microservice.",
       technologies: ["Next.js", "Expo", "React Native", "ASP.NET", "Google Cloud"],
@@ -180,7 +180,7 @@ export const siteConfig = {
       slug: "outerinsights",
       name: "Outer Insights",
       year: "2023",
-      role: "Senior Lead for 5-person Team",
+      role: "Senior Lead",
       description:
         "Platform connecting business founders with investment banks. I built the animated Three.js landing page solo and led the client dashboard: calendar and email sync engines, data processing for over a million records, meeting transcription and analysis, intelligent search on a fine-tuned LLM, and pitch-deck telemetry. SOC2 compliant with WorkOS enterprise integration and public-key encryption of personal data.",
       technologies: [
@@ -226,7 +226,7 @@ export const siteConfig = {
       slug: "authhero",
       name: "Auth Hero",
       year: "2025",
-      role: "Co-founder, Senior Lead for 4-person Team",
+      role: "Co-founder / Senior Lead",
       link: "https://auth-hero.com",
       description:
         "Health-tech startup connecting clinics, insurers, HR, legal, and patients in one workspace for California workers' comp clinics. I built the hand-drawn SVG animated landing page and the case-management dashboard: realtime messaging on Azure Communication Services, e-fax integration with California clinics, stakeholder automation, and a SMART on FHIR app. HIPAA compliant. Shut down for financial reasons; source available for proof.",
@@ -262,7 +262,7 @@ export const siteConfig = {
       slug: "petville",
       name: "Petville",
       year: "2024",
-      role: "Solo Developer (CTO)",
+      role: "CTO / Developer",
       status: "Shut down",
       description:
         "Pet-care marketplace startup: custom e-commerce site, a business dashboard with an AI meeting-insights tool, and a Flutter mobile app I developed and launched on both stores within 60 days. Python and Pandas powered the recommendation engine. Company shut down; source available for proof.",
@@ -333,36 +333,39 @@ export const siteConfig = {
       ],
     },
     {
-      slug: "studentmarket",
-      name: "Student Market",
-      year: "2021",
-      role: "Solo Developer",
-      status: "Relaunched as Dashubs",
-      description:
-        "Buy-and-sell marketplace empowering student communities, peaking at 300 active users a month. Built solo on React with a PHP, Apache, and MySQL backend, and later relaunched as Dashubs.",
-      technologies: ["React", "PHP", "Apache", "MySQL"],
-      heroImage: {
-        src: "/images/projects/studentmarket-web.jpg",
-        alt: "Student Market web marketplace with product listings",
-        width: 1600,
-        height: 740,
-      },
-    },
-    {
-      slug: "portfolio",
-      name: "This Website",
-      year: "2024",
+      slug: "dashubs",
+      name: "Dashubs",
+      year: "2022",
       role: "Solo Developer",
       description:
-        "Highly overengineered portfolio, just for the fun of it. The previous version told a space-to-earth scroll story in React Three Fiber; this one trades the rocket for restraint.",
-      technologies: ["Next.js", "GSAP", "TypeScript", "Tailwind"],
-      link: "https://adamhusain.me",
-      heroImage: {
-        src: "/images/projects/portfolio-site.jpg",
-        alt: "Previous portfolio website hero with handwritten name and 3D rocket",
-        width: 1574,
-        height: 728,
-      },
+        "Thrifting and events app for students, live on iOS and Android. The relaunch of Student Market as a full mobile product, built solo.",
+      technologies: ["Expo", "React Native", "Supabase"],
+      mobileImages: [
+        {
+          src: "/images/projects/dashubs-app-1.png",
+          alt: "Dashubs app home feed with secondhand listings",
+          width: 427,
+          height: 924,
+        },
+        {
+          src: "/images/projects/dashubs-app-2.jpg",
+          alt: "Dashubs app product detail page",
+          width: 427,
+          height: 924,
+        },
+        {
+          src: "/images/projects/dashubs-app-3.jpg",
+          alt: "Dashubs app events map around Kuala Lumpur",
+          width: 427,
+          height: 924,
+        },
+        {
+          src: "/images/projects/dashubs-app-4.png",
+          alt: "Dashubs app word game screen",
+          width: 427,
+          height: 924,
+        },
+      ],
     },
   ] as CareerProject[],
 
@@ -401,37 +404,19 @@ export const siteConfig = {
       technologies: ["Python", "Computer Vision"],
     },
     {
-      slug: "dashubs",
-      name: "Dashubs",
-      year: "2022",
+      slug: "studentmarket",
+      name: "Student Market",
+      year: "2021",
       org: "Personal project",
       description:
-        "Thrifting and events app for students, live on iOS and Android. The relaunch of Student Market as a full mobile product, built solo.",
-      technologies: ["Expo", "React Native", "Supabase"],
+        "Buy-and-sell marketplace empowering student communities, peaking at 300 active users a month. Built solo on React with a PHP, Apache, and MySQL backend, and later relaunched as Dashubs.",
+      technologies: ["React", "PHP", "Apache", "MySQL"],
       images: [
         {
-          src: "/images/projects/dashubs-app-1.png",
-          alt: "Dashubs app home feed with secondhand listings",
-          width: 427,
-          height: 924,
-        },
-        {
-          src: "/images/projects/dashubs-app-2.jpg",
-          alt: "Dashubs app product detail page",
-          width: 427,
-          height: 924,
-        },
-        {
-          src: "/images/projects/dashubs-app-3.jpg",
-          alt: "Dashubs app events map around Kuala Lumpur",
-          width: 427,
-          height: 924,
-        },
-        {
-          src: "/images/projects/dashubs-app-4.png",
-          alt: "Dashubs app word game screen",
-          width: 427,
-          height: 924,
+          src: "/images/projects/studentmarket-web.jpg",
+          alt: "Student Market web marketplace with product listings",
+          width: 1600,
+          height: 740,
         },
       ],
     },

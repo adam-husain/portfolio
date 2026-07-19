@@ -25,7 +25,6 @@ export default function SkillsSection() {
       className="relative bg-background"
     >
       <div className="max-w-6xl mx-auto px-6 py-24 md:py-32">
-        <p className="section-eyebrow mb-4">What I work with</p>
         <h2 id="skills-heading" className="section-heading text-foreground">
           Skills
         </h2>
@@ -33,15 +32,13 @@ export default function SkillsSection() {
         <dl className="mt-12 md:mt-16 grid gap-8 sm:grid-cols-2">
           {SKILL_GROUPS.map((group) => (
             <div key={group.label}>
-              <dt className="font-utility text-sm tracking-[0.15em] uppercase text-muted-foreground mb-3">
+              <dt className="font-utility text-lg md:text-xl tracking-[0.15em] uppercase text-muted-foreground mb-3">
                 {group.label}
               </dt>
               <dd>
-                <ul className="flex flex-wrap gap-2">
+                <ul className="tech-list">
                   {group.items.map((item) => (
-                    <li key={item} className="tech-chip">
-                      {item}
-                    </li>
+                    <li key={item}>{item}</li>
                   ))}
                 </ul>
               </dd>

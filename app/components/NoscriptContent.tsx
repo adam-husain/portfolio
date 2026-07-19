@@ -68,7 +68,7 @@ export default function NoscriptContent() {
           </article>
 
           <article>
-            <h2>Experience</h2>
+            <h2>Formal work</h2>
             {siteConfig.experience.map((job) => (
               <section key={`${job.role}-${job.company}`}>
                 <h3>

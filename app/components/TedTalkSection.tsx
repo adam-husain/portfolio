@@ -26,7 +26,6 @@ export default function TedTalkSection() {
       <div className="mx-auto max-w-6xl px-6 py-24 md:py-32">
         <div className="grid items-center gap-10 md:grid-cols-2">
           <div>
-            <p className="section-eyebrow mb-4">On stage</p>
             <h2 id="ted-talk-heading" className="section-heading text-foreground">
               TEDx Talk
             </h2>

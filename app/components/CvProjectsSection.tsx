@@ -69,11 +69,9 @@ function CvProjectCard({ project }: { project: CvProject }) {
         <p className="mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">
           {project.description}
         </p>
-        <ul className="mt-4 flex flex-wrap gap-2" aria-label="Technologies">
+        <ul className="tech-list mt-4" aria-label="Technologies">
           {project.technologies.map((tech) => (
-            <li key={tech} className="tech-chip">
-              {tech}
-            </li>
+            <li key={tech}>{tech}</li>
           ))}
         </ul>
         {project.link && (
@@ -153,7 +151,6 @@ export default function CvProjectsSection() {
     >
       <div className="flex min-h-svh flex-col justify-center py-24">
         <div className="mx-auto w-full max-w-6xl px-6">
-          <p className="section-eyebrow mb-4">Off the r&eacute;sum&eacute;</p>
           <h2
             id="more-projects-heading"
             className="section-heading text-foreground"
