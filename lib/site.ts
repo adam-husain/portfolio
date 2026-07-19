@@ -227,7 +227,7 @@ export const siteConfig = {
       name: "Auth Hero",
       year: "2025",
       role: "Co-founder, Senior Lead for 4-person Team",
-      status: "Shut down",
+      link: "https://auth-hero.com",
       description:
         "Health-tech startup connecting clinics, insurers, HR, legal, and patients in one workspace for California workers' comp clinics. I built the hand-drawn SVG animated landing page and the case-management dashboard: realtime messaging on Azure Communication Services, e-fax integration with California clinics, stakeholder automation, and a SMART on FHIR app. HIPAA compliant. Shut down for financial reasons; source available for proof.",
       technologies: ["Next.js", "Tailwind", "GSAP", "tRPC", "PostgreSQL", "FHIR", "Azure"],
