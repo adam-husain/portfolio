@@ -1,19 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { siteConfig, type CvProject } from "@/lib/site";
-import { gsap, ScrollTrigger } from "../lib/gsap";
 
 // ============================================================
-// CV PROJECTS SECTION (horizontal scroll)
+// CV PROJECTS SECTION
 // ============================================================
-// On desktop with a fine pointer and no reduced-motion setting,
-// the section pins and the card track translates horizontally,
-// driven by vertical scroll. Everywhere else the exact same
-// markup is a native overflow-x snap scroller, so touch devices
-// never get their scroll hijacked. Card content is SSR'd (client
-// components still server-render HTML) and stays crawlable.
+// The cards use native horizontal scrolling on every device, with
+// buttons for stepping through cards when pointer controls are more
+// convenient. Card content is SSR'd and stays crawlable.
 // ============================================================
 
 function CvProjectCard({ project }: { project: CvProject }) {
@@ -92,85 +88,138 @@ function CvProjectCard({ project }: { project: CvProject }) {
 }
 
 export default function CvProjectsSection() {
-  const sectionRef = useRef<HTMLElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
+  const [canScroll, setCanScroll] = useState({ left: false, right: true });
 
   useEffect(() => {
-    const mm = gsap.matchMedia();
+    const viewport = viewportRef.current;
+    if (!viewport) return;
 
-    mm.add(
-      "(min-width: 768px) and (pointer: fine) and (prefers-reduced-motion: no-preference)",
-      () => {
-        const section = sectionRef.current;
-        const viewport = viewportRef.current;
-        const track = trackRef.current;
-        if (!section || !viewport || !track) return;
+    const updateScrollState = () => {
+      const maxScrollLeft = viewport.scrollWidth - viewport.clientWidth;
+      const next = {
+        left: viewport.scrollLeft > 2,
+        right: viewport.scrollLeft < maxScrollLeft - 2,
+      };
 
-        viewport.dataset.pinned = "true";
-        const dist = () => Math.max(0, track.scrollWidth - viewport.clientWidth);
-        // Pin for 2.5x the horizontal travel so the section scrolls
-        // slowly enough to read each card instead of sweeping past.
-        const SCROLL_STRETCH = 2.5;
+      setCanScroll((current) =>
+        current.left === next.left && current.right === next.right
+          ? current
+          : next
+      );
+    };
 
-        gsap.to(track, {
-          x: () => -dist(),
-          ease: "none",
-          scrollTrigger: {
-            trigger: section,
-            start: "top top",
-            end: () => `+=${Math.round(dist() * SCROLL_STRETCH)}`,
-            pin: true,
-            scrub: 1,
-            anticipatePin: 1,
-            invalidateOnRefresh: true,
-          },
-        });
-
-        return () => {
-          delete viewport.dataset.pinned;
-        };
-      }
-    );
-
-    const onLoad = () => ScrollTrigger.refresh();
-    window.addEventListener("load", onLoad);
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(viewport);
+    viewport.addEventListener("scroll", updateScrollState, { passive: true });
+    const frame = requestAnimationFrame(updateScrollState);
 
     return () => {
-      window.removeEventListener("load", onLoad);
-      mm.revert();
+      cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      viewport.removeEventListener("scroll", updateScrollState);
     };
   }, []);
 
+  const scrollCards = (direction: -1 | 1) => {
+    const viewport = viewportRef.current;
+    const track = viewport?.firstElementChild;
+    const firstCard = track?.firstElementChild;
+    if (!viewport || !(track instanceof HTMLElement) || !firstCard) return;
+
+    const gap = Number.parseFloat(getComputedStyle(track).columnGap) || 0;
+    const distance = firstCard.getBoundingClientRect().width + gap;
+
+    viewport.scrollBy({
+      left: direction * distance,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  };
+
   return (
     <section
-      ref={sectionRef}
       id="more-projects"
       aria-labelledby="more-projects-heading"
       className="relative overflow-hidden border-y border-accent/30 bg-background"
     >
       <div className="flex min-h-svh flex-col justify-center py-24">
-        <div className="mx-auto w-full max-w-6xl px-6">
+        <div className="mx-auto flex w-full max-w-6xl items-end justify-between gap-6 px-6">
           <h2
             id="more-projects-heading"
             className="section-heading text-foreground"
           >
             Projects along the way
           </h2>
+
+          <div className="flex shrink-0 gap-3" aria-label="Project navigation">
+            <button
+              type="button"
+              aria-label="Previous project"
+              aria-controls="more-projects-scroller"
+              disabled={!canScroll.left}
+              onClick={() => scrollCards(-1)}
+              className="flex size-11 items-center justify-center rounded-full border border-primary/60 text-primary transition-[color,background-color,opacity] hover:bg-primary hover:text-background disabled:pointer-events-none disabled:opacity-0"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="size-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+              >
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label="Next project"
+              aria-controls="more-projects-scroller"
+              disabled={!canScroll.right}
+              onClick={() => scrollCards(1)}
+              className="flex size-11 items-center justify-center rounded-full border border-primary/60 text-primary transition-[color,background-color,opacity] hover:bg-primary hover:text-background disabled:pointer-events-none disabled:opacity-0"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="size-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+              >
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <div
-          ref={viewportRef}
-          className="mt-12 snap-x snap-mandatory overflow-x-auto pb-4 [scrollbar-width:thin] data-[pinned=true]:snap-none data-[pinned=true]:overflow-hidden md:mt-16"
-        >
+        <div className="relative ml-auto mt-12 w-full md:max-w-[calc((100vw+72rem)/2)] md:mt-16">
           <div
-            ref={trackRef}
-            className="flex w-max gap-6 px-6 will-change-transform md:px-[max(1.5rem,calc((100vw-72rem)/2))]"
+            id="more-projects-scroller"
+            ref={viewportRef}
+            className="snap-x snap-mandatory overflow-x-auto overflow-y-hidden pb-4 [scrollbar-color:var(--color-accent)_transparent] [scrollbar-width:thin]"
           >
-            {siteConfig.cvProjects.map((project) => (
-              <CvProjectCard key={project.slug} project={project} />
-            ))}
+            <div className="flex w-max gap-6 px-6">
+              {siteConfig.cvProjects.map((project) => (
+                <CvProjectCard key={project.slug} project={project} />
+              ))}
+            </div>
           </div>
+
+          <div
+            aria-hidden="true"
+            className={`pointer-events-none absolute inset-y-0 left-0 w-16 bg-[linear-gradient(to_right,var(--color-background),transparent)] transition-opacity duration-300 md:w-28 ${
+              canScroll.left ? "opacity-100" : "opacity-0"
+            }`}
+          />
+          <div
+            aria-hidden="true"
+            className={`pointer-events-none absolute inset-y-0 right-0 w-16 bg-[linear-gradient(to_left,var(--color-background),transparent)] transition-opacity duration-300 md:w-28 ${
+              canScroll.right ? "opacity-100" : "opacity-0"
+            }`}
+          />
         </div>
       </div>
     </section>

@@ -2,7 +2,7 @@ import HeroSection from "./components/HeroSection";
 import CareerProjectsSection from "./components/CareerProjectsSection";
 import CvProjectsSection from "./components/CvProjectsSection";
 import TedTalkSection from "./components/TedTalkSection";
-import ExperienceSection from "./components/ExperienceSection";
+import EducationSection from "./components/EducationSection";
 import SkillsSection from "./components/SkillsSection";
 import FooterSection from "./components/FooterSection";
 import NoscriptContent from "./components/NoscriptContent";
@@ -23,7 +23,7 @@ export default function Home() {
         <CareerProjectsSection />
         <CvProjectsSection />
         <TedTalkSection />
-        <ExperienceSection />
+        <EducationSection />
         <SkillsSection />
       </main>
 

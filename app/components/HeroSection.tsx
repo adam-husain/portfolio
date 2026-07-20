@@ -53,7 +53,7 @@ export default function HeroSection() {
               href="/resume.pdf"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg border border-accent px-6 py-3 text-base font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
+              className="rounded-lg border border-accent px-6 py-3 text-base font-medium text-foreground transition-colors hover:border-primary hover:bg-primary hover:text-secondary"
             >
               R&eacute;sum&eacute;
             </a>

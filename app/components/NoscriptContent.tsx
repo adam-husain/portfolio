@@ -68,22 +68,6 @@ export default function NoscriptContent() {
           </article>
 
           <article>
-            <h2>Formal work</h2>
-            {siteConfig.experience.map((job) => (
-              <section key={`${job.role}-${job.company}`}>
-                <h3>
-                  {job.role} at {job.company}
-                </h3>
-                <p>
-                  {job.period}
-                  {job.location ? ` | ${job.location}` : ""}
-                </p>
-                {job.summary && <p>{job.summary}</p>}
-              </section>
-            ))}
-          </article>
-
-          <article>
             <h2>Education</h2>
             {siteConfig.education.map((edu) => (
               <section key={edu.degree}>
